@@ -1,0 +1,16 @@
+{
+    "model": {
+        "type": "minecraft:range_dispatch",
+    	"models": [],
+        "property": "minecraft:custom_model_data",
+        "entries": [
+            {"threshold": 15, "model": {"type": "model", "model": "weapons/arc5/mace/lv1"}},
+            {"threshold": 16, "model": {"type": "model", "model": "weapons/arc5/mace/lv2"}},
+            {"threshold": 17, "model": {"type": "model", "model": "weapons/arc5/mace/lv3"}}
+        ],
+        "fallback": {
+            "type": "model",
+            "model": "minecraft:item/mace"
+        }
+    }
+}
