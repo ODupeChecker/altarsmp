@@ -6,7 +6,7 @@ authors: [Altarly]
 commands:
   altarly:
     description: Altarly admin command
-    usage: /altarly <reload|legs|cooldown>
+    usage: /altarly <reload|legs>
 permissions:
   altarly.admin:
     default: op

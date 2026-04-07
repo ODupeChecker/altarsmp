@@ -18,28 +18,26 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.Vector3f;
 
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public final class AbilityListener implements Listener {
 
-    private final AltarlyPlugin plugin;
+    private final JavaPlugin plugin;
     private final WeaponManager weaponManager;
     private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
 
     private final Map<UUID, Long> slashCooldowns = new HashMap<>();
     private final Map<UUID, Long> flamethrowerCooldowns = new HashMap<>();
 
-    public AbilityListener(AltarlyPlugin plugin, WeaponManager weaponManager) {
+    public AbilityListener(JavaPlugin plugin, WeaponManager weaponManager) {
         this.plugin = plugin;
         this.weaponManager = weaponManager;
     }
@@ -54,39 +52,34 @@ public final class AbilityListener implements Listener {
 
         event.setCancelled(true);
         boolean sneaking = player.isSneaking();
-        if (sneaking && config().getBoolean("CURSED_BLADE.ABILITIES.CURSED_FLAMETHROWER.ENABLED", true)) {
+        if (sneaking && plugin.getConfig().getBoolean("CURSED_BLADE.ABILITIES.CURSED_FLAMETHROWER.ENABLED", true)) {
             castFlamethrower(player);
-        } else if (!sneaking && config().getBoolean("CURSED_BLADE.ABILITIES.SWORD_SLASH.ENABLED", true)) {
+        } else if (!sneaking && plugin.getConfig().getBoolean("CURSED_BLADE.ABILITIES.SWORD_SLASH.ENABLED", true)) {
             castSwordSlash(player);
         }
     }
 
-    public void resetCooldowns() {
-        slashCooldowns.clear();
-        flamethrowerCooldowns.clear();
-    }
-
     private void castSwordSlash(Player player) {
+        FileConfiguration cfg = plugin.getConfig();
         String root = "CURSED_BLADE.ABILITIES.SWORD_SLASH";
 
-        if (isOnCooldown(player.getUniqueId(), slashCooldowns, config().getLong(root + ".COOLDOWN_MILLIS", 5500L))) {
-            sendMessage(player, config().getString("CURSED_BLADE.MESSAGES.SLASH_COOLDOWN", "&cSword Slash is on cooldown."));
+        if (isOnCooldown(player.getUniqueId(), slashCooldowns, cfg.getLong(root + ".COOLDOWN_MILLIS", 5500L))) {
+            sendMessage(player, cfg.getString("CURSED_BLADE.MESSAGES.SLASH_COOLDOWN", "&cSword Slash is on cooldown."));
             return;
         }
 
         slashCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
 
-        int slashCount = config().getInt(root + ".SLASH_COUNT", 5);
-        double maxDistance = config().getDouble(root + ".MAX_DISTANCE", 10.0);
+        int slashCount = cfg.getInt(root + ".SLASH_COUNT", 5);
+        double maxDistance = cfg.getDouble(root + ".MAX_DISTANCE", 10.0);
         double spacing = maxDistance / Math.max(1, slashCount);
-        double damage = config().getDouble(root + ".DAMAGE", 5.0);
-        double radius = config().getDouble(root + ".RADIUS", 1.7);
-        double height = config().getDouble(root + ".HEIGHT", 2.0);
-        long intervalTicks = config().getLong(root + ".INTERVAL_TICKS", 4L);
-        int standLifeTicks = config().getInt(root + ".VISUAL.LIFETIME_TICKS", 20);
-        int sweepCount = config().getInt(root + ".VISUAL.PARTICLE_SWEEP_COUNT", 1);
-        int cloudCount = config().getInt(root + ".VISUAL.PARTICLE_CLOUD_COUNT", 8);
-        double visualScale = config().getDouble(root + ".VISUAL.SCALE", 1.0);
+        double damage = cfg.getDouble(root + ".DAMAGE", 5.0);
+        double radius = cfg.getDouble(root + ".RADIUS", 1.7);
+        double height = cfg.getDouble(root + ".HEIGHT", 2.0);
+        long intervalTicks = cfg.getLong(root + ".INTERVAL_TICKS", 4L);
+        int standLifeTicks = cfg.getInt(root + ".VISUAL.LIFETIME_TICKS", 20);
+        int sweepCount = cfg.getInt(root + ".VISUAL.PARTICLE_SWEEP_COUNT", 1);
+        int cloudCount = cfg.getInt(root + ".VISUAL.PARTICLE_CLOUD_COUNT", 8);
 
         Vector direction = player.getLocation().getDirection().setY(0).normalize();
         if (direction.lengthSquared() == 0) {
@@ -107,14 +100,15 @@ public final class AbilityListener implements Listener {
                 }
 
                 double distance = Math.min(maxDistance, spacing * (current + 1));
-                Location ground = player.getLocation().clone().add(flatDirection.clone().multiply(distance));
-                ground.setY(player.getLocation().getY() + 0.1);
+                Location base = player.getLocation().clone().add(flatDirection.clone().multiply(distance));
+                Location ground = base.clone();
+                ground.setY(world.getHighestBlockYAt(base) + 0.1);
 
-                spawnSlashStand(ground, player.getLocation().getYaw(), standLifeTicks, visualScale);
-                world.spawnParticle(Particle.SWEEP_ATTACK, ground.clone().add(0, 1.0 * visualScale, 0), sweepCount, 0.1 * visualScale, 0.1 * visualScale, 0.1 * visualScale, 0.01);
-                world.spawnParticle(Particle.CLOUD, ground.clone().add(0, 0.2 * visualScale, 0), cloudCount, 0.45 * visualScale, 0.1, 0.45 * visualScale, 0.01);
+                spawnSlashStand(ground, player.getLocation().getYaw(), standLifeTicks);
+                world.spawnParticle(Particle.SWEEP_ATTACK, ground.clone().add(0, 1.0, 0), sweepCount, 0.1, 0.1, 0.1, 0.01);
+                world.spawnParticle(Particle.CLOUD, ground.clone().add(0, 0.2, 0), cloudCount, 0.45, 0.1, 0.45, 0.01);
 
-                for (Entity entity : world.getNearbyEntities(ground, radius * visualScale, height * visualScale, radius * visualScale)) {
+                for (Entity entity : world.getNearbyEntities(ground, radius, height, radius)) {
                     if (!(entity instanceof Player target) || target.getUniqueId().equals(player.getUniqueId())) {
                         continue;
                     }
@@ -126,28 +120,25 @@ public final class AbilityListener implements Listener {
     }
 
     private void castFlamethrower(Player player) {
+        FileConfiguration cfg = plugin.getConfig();
         String root = "CURSED_BLADE.ABILITIES.CURSED_FLAMETHROWER";
 
-        if (isOnCooldown(player.getUniqueId(), flamethrowerCooldowns, config().getLong(root + ".COOLDOWN_MILLIS", 12000L))) {
-            sendMessage(player, config().getString("CURSED_BLADE.MESSAGES.FLAMETHROWER_COOLDOWN", "&cCursed Flamethrower is on cooldown."));
+        if (isOnCooldown(player.getUniqueId(), flamethrowerCooldowns, cfg.getLong(root + ".COOLDOWN_MILLIS", 12000L))) {
+            sendMessage(player, cfg.getString("CURSED_BLADE.MESSAGES.FLAMETHROWER_COOLDOWN", "&cCursed Flamethrower is on cooldown."));
             return;
         }
 
         flamethrowerCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
 
-        int durationTicks = config().getInt(root + ".DURATION_TICKS", 60);
-        double hitRadius = config().getDouble(root + ".HIT_RADIUS", 1.15);
-        double tickDamage = config().getDouble(root + ".DAMAGE_PER_TICK", 1.4);
-        int fireTicks = config().getInt(root + ".FIRE_TICKS", 40);
-        int packetLifeTicks = config().getInt(root + ".PACKET_LIFE_TICKS", 6);
-        double packetVelocity = config().getDouble(root + ".PACKET_VELOCITY", 0.5);
-        double spawnOffset = config().getDouble(root + ".SPAWN_OFFSET", 0.9);
-        double visualScale = config().getDouble(root + ".VISUAL.SCALE", 1.0);
-        double displayOffset = config().getDouble(root + ".VISUAL.DISPLAY_OFFSET", 1.0);
+        int durationTicks = cfg.getInt(root + ".DURATION_TICKS", 60);
+        double maxRange = cfg.getDouble(root + ".MAX_RANGE", 8.0);
+        double step = cfg.getDouble(root + ".RAY_STEP", 0.8);
+        double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 1.15);
+        double tickDamage = cfg.getDouble(root + ".DAMAGE_PER_TICK", 1.4);
+        int fireTicks = cfg.getInt(root + ".FIRE_TICKS", 40);
 
         new BukkitRunnable() {
             int lived = 0;
-            final List<FlamePacket> packets = new ArrayList<>();
 
             @Override
             public void run() {
@@ -158,29 +149,19 @@ public final class AbilityListener implements Listener {
 
                 Location eye = player.getEyeLocation();
                 Vector direction = eye.getDirection().normalize();
-                Location spawnPoint = eye.clone().add(direction.clone().multiply(spawnOffset));
-                packets.add(new FlamePacket(spawnPoint, direction.clone().multiply(packetVelocity), packetLifeTicks));
-                renderFlamethrowerDisplay(spawnPoint.clone().add(direction.clone().multiply(displayOffset)), eye, visualScale);
+                renderFlamethrowerDisplay(eye.clone().add(direction.clone().multiply(1.75)), eye);
 
-                Iterator<FlamePacket> iterator = packets.iterator();
-                while (iterator.hasNext()) {
-                    FlamePacket packet = iterator.next();
-                    packet.location.add(packet.velocity);
+                for (double d = 1.0; d <= maxRange; d += step) {
+                    Location point = eye.clone().add(direction.clone().multiply(d));
+                    player.getWorld().spawnParticle(Particle.FLAME, point, 4, 0.15, 0.15, 0.15, 0.001);
+                    player.getWorld().spawnParticle(Particle.SMOKE, point, 1, 0.05, 0.05, 0.05, 0.001);
 
-                    player.getWorld().spawnParticle(Particle.FLAME, packet.location, (int) Math.max(2, 5 * visualScale), 0.2 * visualScale, 0.2 * visualScale, 0.2 * visualScale, 0.001);
-                    player.getWorld().spawnParticle(Particle.SMOKE, packet.location, (int) Math.max(1, 2 * visualScale), 0.1 * visualScale, 0.1 * visualScale, 0.1 * visualScale, 0.001);
-
-                    for (Entity entity : player.getWorld().getNearbyEntities(packet.location, hitRadius * visualScale, hitRadius * visualScale, hitRadius * visualScale)) {
+                    for (Entity entity : player.getWorld().getNearbyEntities(point, hitRadius, hitRadius, hitRadius)) {
                         if (!(entity instanceof Player target) || target.getUniqueId().equals(player.getUniqueId())) {
                             continue;
                         }
                         applyAbilityDamage(player, target, tickDamage);
                         target.setFireTicks(Math.max(target.getFireTicks(), fireTicks));
-                    }
-
-                    packet.life--;
-                    if (packet.life <= 0) {
-                        iterator.remove();
                     }
                 }
 
@@ -189,34 +170,33 @@ public final class AbilityListener implements Listener {
         }.runTaskTimer(plugin, 0L, 1L);
     }
 
-    private void spawnSlashStand(Location location, float yaw, int lifetimeTicks, double scale) {
+    private void spawnSlashStand(Location location, float yaw, int lifetimeTicks) {
         String root = "CURSED_BLADE.ABILITIES.SWORD_SLASH.VISUAL";
         ArmorStand stand = (ArmorStand) location.getWorld().spawnEntity(location, EntityType.ARMOR_STAND);
-        stand.customName(Component.text(config().getString(root + ".CUSTOM_NAME", "Tower Skeleton Slash")));
-        stand.setInvisible(config().getBoolean(root + ".INVISIBLE", false));
-        stand.setMarker(config().getBoolean(root + ".MARKER", true));
-        stand.setGravity(config().getBoolean(root + ".GRAVITY", false));
-        stand.setInvulnerable(config().getBoolean(root + ".INVULNERABLE", true));
+        stand.customName(Component.text(plugin.getConfig().getString(root + ".CUSTOM_NAME", "Tower Skeleton Slash")));
+        stand.setInvisible(plugin.getConfig().getBoolean(root + ".INVISIBLE", false));
+        stand.setMarker(plugin.getConfig().getBoolean(root + ".MARKER", true));
+        stand.setGravity(plugin.getConfig().getBoolean(root + ".GRAVITY", false));
+        stand.setInvulnerable(plugin.getConfig().getBoolean(root + ".INVULNERABLE", true));
         stand.setPersistent(false);
-        stand.setSmall(scale < 0.9);
         stand.setRotation(yaw, 0f);
         Bukkit.getScheduler().runTaskLater(plugin, stand::remove, lifetimeTicks);
     }
 
-    private void renderFlamethrowerDisplay(Location location, Location eye, double scaleMultiplier) {
+    private void renderFlamethrowerDisplay(Location location, Location eye) {
         String root = "CURSED_BLADE.ABILITIES.CURSED_FLAMETHROWER.VISUAL";
         TextDisplay display = (TextDisplay) location.getWorld().spawnEntity(location, EntityType.TEXT_DISPLAY);
-        display.text(Component.text(config().getString(root + ".GLYPH", "⛹")));
+        display.text(Component.text(plugin.getConfig().getString(root + ".GLYPH", "⛹")));
         display.setBillboard(Display.Billboard.CENTER);
         display.setSeeThrough(false);
-        display.setViewRange((float) config().getDouble(root + ".VIEW_RANGE", 1.0));
-        int block = config().getInt(root + ".BRIGHTNESS_BLOCK", 15);
-        int sky = config().getInt(root + ".BRIGHTNESS_SKY", 15);
+        display.setViewRange((float) plugin.getConfig().getDouble(root + ".VIEW_RANGE", 1.0));
+        int block = plugin.getConfig().getInt(root + ".BRIGHTNESS_BLOCK", 15);
+        int sky = plugin.getConfig().getInt(root + ".BRIGHTNESS_SKY", 15);
         display.setBrightness(new Display.Brightness(block, sky));
         display.setPersistent(false);
 
         Transformation transformation = display.getTransformation();
-        float scale = (float) (config().getDouble(root + ".SCALE", 4.0) * scaleMultiplier);
+        float scale = (float) plugin.getConfig().getDouble(root + ".SCALE", 4.0);
         display.setTransformation(new Transformation(
                 transformation.getTranslation(),
                 transformation.getLeftRotation(),
@@ -224,7 +204,7 @@ public final class AbilityListener implements Listener {
                 transformation.getRightRotation()
         ));
         display.setRotation(eye.getYaw(), eye.getPitch());
-        int life = config().getInt(root + ".LIFETIME_TICKS", 2);
+        int life = plugin.getConfig().getInt(root + ".LIFETIME_TICKS", 2);
         Bukkit.getScheduler().runTaskLater(plugin, display::remove, life);
     }
 
@@ -233,7 +213,7 @@ public final class AbilityListener implements Listener {
     }
 
     private void sendMessage(Player player, String message) {
-        String prefix = config().getString("CURSED_BLADE.MESSAGES.PREFIX", "");
+        String prefix = plugin.getConfig().getString("CURSED_BLADE.MESSAGES.PREFIX", "");
         player.sendMessage(serializer.deserialize(prefix + message));
     }
 
@@ -241,21 +221,5 @@ public final class AbilityListener implements Listener {
         long now = System.currentTimeMillis();
         Long last = cooldowns.get(uuid);
         return last != null && (now - last) < cooldownMillis;
-    }
-
-    private FileConfiguration config() {
-        return plugin.getAltarlyConfig();
-    }
-
-    private static final class FlamePacket {
-        private final Location location;
-        private final Vector velocity;
-        private int life;
-
-        private FlamePacket(Location location, Vector velocity, int life) {
-            this.location = location;
-            this.velocity = velocity;
-            this.life = life;
-        }
     }
 }

@@ -20,23 +20,20 @@ import java.util.List;
 public final class AltarlyCommand implements CommandExecutor, TabCompleter {
     private final AltarlyPlugin plugin;
     private final WeaponManager weaponManager;
-    private final AbilityListener abilityListener;
     private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
 
-    public AltarlyCommand(AltarlyPlugin plugin, WeaponManager weaponManager, AbilityListener abilityListener) {
+    public AltarlyCommand(AltarlyPlugin plugin, WeaponManager weaponManager) {
         this.plugin = plugin;
         this.weaponManager = weaponManager;
-        this.abilityListener = abilityListener;
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        FileConfiguration cfg = plugin.getAltarlyConfig();
+        FileConfiguration cfg = plugin.getConfig();
 
         if (args.length == 0) {
             sender.sendMessage(color("&e/altarly reload &7- Reload config"));
             sender.sendMessage(color("&e/altarly legs &7- Open legendary chest"));
-            sender.sendMessage(color("&e/altarly cooldown &7- Reset all cooldowns"));
             return true;
         }
 
@@ -46,18 +43,8 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
                 return true;
             }
 
-            plugin.reloadAltarlyConfig();
+            plugin.reloadConfig();
             sender.sendMessage(color(cfg.getString("CURSED_BLADE.MESSAGES.RELOAD_SUCCESS", "&aAltarly config reloaded.")));
-            return true;
-        }
-
-        if (args[0].equalsIgnoreCase(cfg.getString("CURSED_BLADE.COMMANDS.COOLDOWN.ALIAS", "cooldown"))) {
-            if (!sender.hasPermission("altarly.admin")) {
-                sender.sendMessage(color(cfg.getString("CURSED_BLADE.MESSAGES.NO_PERMISSION", "&cYou do not have permission.")));
-                return true;
-            }
-            abilityListener.resetCooldowns();
-            sender.sendMessage(color(cfg.getString("CURSED_BLADE.MESSAGES.COOLDOWN_RESET", "&aAll ability cooldowns were reset.")));
             return true;
         }
 
@@ -87,12 +74,10 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> options = new ArrayList<>();
-            String reload = plugin.getAltarlyConfig().getString("CURSED_BLADE.COMMANDS.RELOAD.ALIAS", "reload");
-            String legs = plugin.getAltarlyConfig().getString("CURSED_BLADE.COMMANDS.LEGS.ALIAS", "legs");
-            String cooldown = plugin.getAltarlyConfig().getString("CURSED_BLADE.COMMANDS.COOLDOWN.ALIAS", "cooldown");
+            String reload = plugin.getConfig().getString("CURSED_BLADE.COMMANDS.RELOAD.ALIAS", "reload");
+            String legs = plugin.getConfig().getString("CURSED_BLADE.COMMANDS.LEGS.ALIAS", "legs");
             if (reload.startsWith(args[0].toLowerCase())) options.add(reload);
             if (legs.startsWith(args[0].toLowerCase())) options.add(legs);
-            if (cooldown.startsWith(args[0].toLowerCase())) options.add(cooldown);
             return options;
         }
         return List.of();

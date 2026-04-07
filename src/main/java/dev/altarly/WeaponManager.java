@@ -8,22 +8,23 @@ import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 public final class WeaponManager {
-    private final AltarlyPlugin plugin;
+    private final JavaPlugin plugin;
     private final NamespacedKey weaponKey;
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
 
-    public WeaponManager(AltarlyPlugin plugin) {
+    public WeaponManager(JavaPlugin plugin) {
         this.plugin = plugin;
         this.weaponKey = new NamespacedKey(plugin, "cursed_blade");
     }
 
     public ItemStack createLegendaryWeapon() {
-        FileConfiguration cfg = plugin.getAltarlyConfig();
+        FileConfiguration cfg = plugin.getConfig();
         String root = "CURSED_BLADE";
 
         ItemStack item = new ItemStack(Material.NETHERITE_SWORD);
