@@ -1,0 +1,12 @@
+name: Altarly
+version: 1.0.0
+main: dev.altarly.AltarlyPlugin
+api-version: '1.21'
+authors: [Altarly]
+commands:
+  altarly:
+    description: Altarly admin command
+    usage: /altarly <reload|legs|cooldown>
+permissions:
+  altarly.admin:
+    default: op
