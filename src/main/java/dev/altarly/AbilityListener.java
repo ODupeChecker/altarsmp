@@ -67,10 +67,9 @@ public final class AbilityListener implements Listener {
         slashCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         showCooldownBar(player, cfg.getString(root + ".ABILITY_NAME", "Ruined Slash"), cooldownMillis, BossBar.Color.PURPLE);
 
-        int totalBlocks = cfg.getInt(root + ".DISTANCE_BLOCKS", 7);
-        double startBlocks = cfg.getDouble(root + ".START_BLOCKS", 1.0);
-        double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.5);
+        int totalBlocks = cfg.getInt(root + ".DISTANCE_BLOCKS", 6);
         double damage = cfg.getDouble(root + ".TRUE_DAMAGE", 5.0);
+        double burstRadius = cfg.getDouble(root + ".BURST_RADIUS", 6.0);
         String worldName = cfg.getString(root + ".MM_WORLD", player.getWorld().getName());
         String mobId = cfg.getString(root + ".MM_MOB", "TOWER_SKELETON_SLASH_FX:1");
 
@@ -79,26 +78,25 @@ public final class AbilityListener implements Listener {
         if (forward.lengthSquared() == 0) {
             forward = new Vector(0, 0, 1);
         }
+        Vector right = new Vector(-forward.getZ(), 0, forward.getX()).normalize();
 
-        Map<UUID, Player> hits = new HashMap<>();
-        for (int step = 0; step < totalBlocks; step++) {
-            double distance = startBlocks + step;
-            Location point = origin.clone().add(forward.clone().multiply(distance));
-            Location block = point.getBlock().getLocation();
-            dispatchMythicSpawn(worldName, mobId, block.getBlockX(), block.getBlockY(), block.getBlockZ(), origin.getYaw(), origin.getPitch());
+        Vector[] diagonalDirs = new Vector[]{
+                forward.clone().add(right).normalize(),
+                forward.clone().subtract(right).normalize(),
+                forward.clone().multiply(-1).add(right).normalize(),
+                forward.clone().multiply(-1).subtract(right).normalize()
+        };
 
-            for (Entity entity : point.getWorld().getNearbyEntities(point, hitRadius, hitRadius, hitRadius)) {
-                if (!(entity instanceof Player target) || target.getUniqueId().equals(player.getUniqueId())) {
-                    continue;
-                }
-                hits.putIfAbsent(target.getUniqueId(), target);
+        for (int distance = 1; distance <= totalBlocks; distance++) {
+            for (Vector diagonalDir : diagonalDirs) {
+                Location point = origin.clone().add(diagonalDir.clone().multiply(distance));
+                Location block = point.getBlock().getLocation();
+                dispatchMythicSpawn(worldName, mobId, block.getBlockX(), block.getBlockY(), block.getBlockZ(), origin.getYaw(), origin.getPitch());
             }
         }
 
         playSound(player, cfg.getString(root + ".SOUND", "littleroom_towerskeleton:sword_hit"), 1.0f, 1.0f);
-        for (Player target : hits.values()) {
-            applyTrueDamage(player, target, damage);
-        }
+        damageNearbyPlayers(player, player.getLocation(), burstRadius, damage);
     }
 
     private void castFlamethrower(Player player) {
@@ -118,7 +116,6 @@ public final class AbilityListener implements Listener {
         long pulseTicks = cfg.getLong(root + ".PULSE_INTERVAL_TICKS", 24L);
         long soundTicks = cfg.getLong(root + ".SOUND_INTERVAL_TICKS", 20L);
         double maxDistance = cfg.getDouble(root + ".LENGTH_BLOCKS", 3.0);
-        double startBlocks = cfg.getDouble(root + ".START_BLOCKS", 1.0);
         double step = cfg.getDouble(root + ".STEP_BLOCKS", 0.5);
         double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.8);
         double tickDamage = cfg.getDouble(root + ".TRUE_DAMAGE_PER_PULSE", 1.2);
@@ -138,21 +135,10 @@ public final class AbilityListener implements Listener {
                 Location eye = player.getEyeLocation();
                 Vector direction = eye.getDirection().normalize();
 
-                Map<UUID, Player> pulseHits = new HashMap<>();
-                for (double dist = startBlocks; dist <= maxDistance + 0.0001; dist += step) {
+                for (double dist = step; dist <= maxDistance + 0.0001; dist += step) {
                     Location point = eye.clone().add(direction.clone().multiply(dist));
                     dispatchMythicSpawn(worldName, mobId, point.getBlockX(), point.getBlockY(), point.getBlockZ(), eye.getYaw(), eye.getPitch());
-
-                    for (Entity entity : point.getWorld().getNearbyEntities(point, hitRadius, hitRadius, hitRadius)) {
-                        if (!(entity instanceof Player target) || target.getUniqueId().equals(player.getUniqueId())) {
-                            continue;
-                        }
-                        pulseHits.putIfAbsent(target.getUniqueId(), target);
-                    }
-                }
-
-                for (Player target : pulseHits.values()) {
-                    applyTrueDamage(player, target, tickDamage);
+                    damageNearbyPlayers(player, point, hitRadius, tickDamage);
                 }
 
                 livedTicks += pulseTicks;
@@ -175,6 +161,14 @@ public final class AbilityListener implements Listener {
         }.runTaskTimer(plugin, 0L, soundTicks);
     }
 
+    private void damageNearbyPlayers(Player source, Location center, double radius, double amount) {
+        for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
+            if (!(entity instanceof Player target) || target.getUniqueId().equals(source.getUniqueId())) {
+                continue;
+            }
+            applyTrueDamage(source, target, amount);
+        }
+    }
 
     private void dispatchMythicSpawn(String worldName, String mobId, int x, int y, int z, float yaw, float pitch) {
         String command = "mm mobs spawn " + mobId + " 1 " + worldName + "," + x + "," + y + "," + z + "," + yaw + "," + pitch;
