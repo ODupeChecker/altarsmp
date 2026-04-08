@@ -6,25 +6,33 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.entity.Display;
 import org.bukkit.Particle;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.AxisAngle4f;
+import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public final class AbilityListener implements Listener {
+    private static final String[] FLAME_GLYPHS = {"⛿", "⛾", "⛽", "⛼", "⛻", "⛺", "⛹", "⛸", "🁉", "🁊"};
+
 
     private final JavaPlugin plugin;
     private final WeaponManager weaponManager;
@@ -109,13 +117,14 @@ public final class AbilityListener implements Listener {
         ruinstepCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         showCooldownBar(player, cfg.getString(root + ".ABILITY_NAME", "Ruinstep"), cooldownMillis, BossBar.Color.RED);
 
-        double dashDistance = cfg.getDouble(root + ".DASH_DISTANCE_BLOCKS", 8.0);
         double dashSpeed = cfg.getDouble(root + ".DASH_SPEED", 1.85);
-        double flameSpacing = Math.max(0.1, cfg.getDouble(root + ".FLAME_SPACING_BLOCKS", 2.0));
+        double liftVelocity = cfg.getDouble(root + ".LIFT_VELOCITY", 0.42);
+        double flameOffset = Math.max(0.4, cfg.getDouble(root + ".FLAME_OFFSET_BLOCKS", 0.9));
+        double flameHeight = cfg.getDouble(root + ".FLAME_HEIGHT_OFFSET", 0.1);
+        double displayScale = Math.max(0.1, cfg.getDouble(root + ".FLAME_SCALE", 4.0));
+        int minAirTicks = Math.max(2, cfg.getInt(root + ".MIN_AIR_TICKS", 5));
         double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.75);
         double trueDamage = cfg.getDouble(root + ".TRUE_DAMAGE", 3.0);
-        String worldName = cfg.getString(root + ".MM_WORLD", player.getWorld().getName());
-        String mobId = cfg.getString(root + ".MM_MOB", "TOWERSKELETON_flamethrower_fx:1");
 
         Location start = player.getLocation();
         Vector horizontalDirection = start.getDirection().setY(0).normalize();
@@ -124,20 +133,21 @@ public final class AbilityListener implements Listener {
         }
         final Vector dashDirection = horizontalDirection.clone();
 
-        Vector dashVelocity = dashDirection.clone().multiply(dashSpeed);
+        Vector dashVelocity = dashDirection.clone().multiply(dashSpeed).setY(liftVelocity);
         player.setVelocity(dashVelocity);
         playSound(player, cfg.getString(root + ".DASH_SOUND", "minecraft:entity.blaze.shoot"), 1.0f, 0.95f);
         playSound(player, cfg.getString(root + ".DASH_SOUND_SECONDARY", "minecraft:entity.player.attack.knockback"), 0.9f, 1.1f);
-
-        int dashTicks = Math.max(1, (int) Math.ceil(dashDistance / Math.max(0.01, dashSpeed)));
-        int spawnsPerTick = Math.max(1, (int) Math.round(1.0 / flameSpacing));
 
         new BukkitRunnable() {
             int ticksLived = 0;
 
             @Override
             public void run() {
-                if (!player.isOnline() || player.isDead() || ticksLived >= dashTicks) {
+                if (!player.isOnline() || player.isDead()) {
+                    cancel();
+                    return;
+                }
+                if (ticksLived >= minAirTicks && player.isOnGround()) {
                     cancel();
                     return;
                 }
@@ -151,16 +161,52 @@ public final class AbilityListener implements Listener {
                 }
 
                 Vector behind = currentDirection.clone().multiply(-1.0);
-                for (int i = 0; i < spawnsPerTick; i++) {
-                    double offset = 0.8 + (i * flameSpacing);
-                    Location spawn = current.clone().add(behind.clone().multiply(offset)).add(0, 0.1, 0);
-                    dispatchMythicSpawn(worldName, mobId, spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ(), current.getYaw(), current.getPitch());
-                    damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage);
-                }
+                Location spawn = current.clone().add(behind.multiply(flameOffset)).add(0, flameHeight, 0);
+                spawnFlameDisplay(spawn, displayScale);
+                damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage);
 
                 ticksLived++;
             }
         }.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    private void spawnFlameDisplay(Location location, double scale) {
+        TextDisplay display = location.getWorld().spawn(location, TextDisplay.class, entity -> {
+            entity.setText(FLAME_GLYPHS[0]);
+            entity.setBillboard(Display.Billboard.CENTER);
+            entity.setSeeThrough(true);
+            entity.setShadowed(false);
+            entity.setDefaultBackground(false);
+            entity.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+            entity.setBrightness(new Display.Brightness(15, 15));
+            entity.setTransformation(new Transformation(
+                    new Vector3f(),
+                    new AxisAngle4f(),
+                    new Vector3f((float) scale, (float) scale, (float) scale),
+                    new AxisAngle4f()
+            ));
+        });
+
+        new BukkitRunnable() {
+            int frame = 1;
+
+            @Override
+            public void run() {
+                if (!display.isValid()) {
+                    cancel();
+                    return;
+                }
+                if (frame >= FLAME_GLYPHS.length) {
+                    display.setText(" ");
+                    display.remove();
+                    cancel();
+                    return;
+                }
+
+                display.setText(FLAME_GLYPHS[frame]);
+                frame++;
+            }
+        }.runTaskTimer(plugin, 2L, 2L);
     }
 
     private void damageNearbyPlayers(Player source, Location center, double radius, double amount) {

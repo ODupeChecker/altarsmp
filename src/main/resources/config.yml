@@ -35,13 +35,14 @@ CURSED_BLADE:
       TRIGGER: "OFFHAND_SWAP"
       SHIFT_REQUIRED: true
       COOLDOWN_MILLIS: 9000
-      DASH_DISTANCE_BLOCKS: 8.0
       DASH_SPEED: 1.85
-      FLAME_SPACING_BLOCKS: 2.0
+      LIFT_VELOCITY: 0.42
+      MIN_AIR_TICKS: 5
+      FLAME_OFFSET_BLOCKS: 0.9
+      FLAME_HEIGHT_OFFSET: 0.1
+      FLAME_SCALE: 4.0
       HIT_RADIUS: 0.75
       TRUE_DAMAGE: 3.0
-      MM_MOB: "TOWERSKELETON_flamethrower_fx:1"
-      MM_WORLD: "worldo12"
       DASH_SOUND: "minecraft:entity.blaze.shoot"
       DASH_SOUND_SECONDARY: "minecraft:entity.player.attack.knockback"
 
