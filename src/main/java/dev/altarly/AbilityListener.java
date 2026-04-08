@@ -111,7 +111,7 @@ public final class AbilityListener implements Listener {
 
         double dashDistance = cfg.getDouble(root + ".DASH_DISTANCE_BLOCKS", 8.0);
         double dashSpeed = cfg.getDouble(root + ".DASH_SPEED", 1.85);
-        double flameSpacing = cfg.getDouble(root + ".FLAME_SPACING_BLOCKS", 2.0);
+        double flameSpacing = Math.max(0.1, cfg.getDouble(root + ".FLAME_SPACING_BLOCKS", 2.0));
         double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.75);
         double trueDamage = cfg.getDouble(root + ".TRUE_DAMAGE", 3.0);
         String worldName = cfg.getString(root + ".MM_WORLD", player.getWorld().getName());
@@ -122,19 +122,45 @@ public final class AbilityListener implements Listener {
         if (horizontalDirection.lengthSquared() == 0) {
             horizontalDirection = new Vector(0, 0, 1);
         }
+        final Vector dashDirection = horizontalDirection.clone();
 
-        player.setVelocity(horizontalDirection.clone().multiply(dashSpeed));
+        Vector dashVelocity = dashDirection.clone().multiply(dashSpeed);
+        player.setVelocity(dashVelocity);
         playSound(player, cfg.getString(root + ".DASH_SOUND", "minecraft:entity.blaze.shoot"), 1.0f, 0.95f);
         playSound(player, cfg.getString(root + ".DASH_SOUND_SECONDARY", "minecraft:entity.player.attack.knockback"), 0.9f, 1.1f);
 
-        for (double distance = 0.0; distance <= dashDistance + 0.0001; distance += flameSpacing) {
-            Location point = start.clone().add(horizontalDirection.clone().multiply(distance));
-            Location spawn = point.clone().add(0, 0.1, 0);
-            dispatchMythicSpawn(worldName, mobId, spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ(), start.getYaw(), start.getPitch());
-            spawn.getWorld().spawnParticle(Particle.FLAME, spawn.clone().add(0, 0.7, 0), 8, 0.2, 0.1, 0.2, 0.005);
-            spawn.getWorld().spawnParticle(Particle.SMOKE, spawn.clone().add(0, 0.7, 0), 4, 0.15, 0.1, 0.15, 0.002);
-            damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage);
-        }
+        int dashTicks = Math.max(1, (int) Math.ceil(dashDistance / Math.max(0.01, dashSpeed)));
+        int spawnsPerTick = Math.max(1, (int) Math.round(1.0 / flameSpacing));
+
+        new BukkitRunnable() {
+            int ticksLived = 0;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || player.isDead() || ticksLived >= dashTicks) {
+                    cancel();
+                    return;
+                }
+
+                Location current = player.getLocation();
+                Vector currentDirection = player.getVelocity().clone().setY(0);
+                if (currentDirection.lengthSquared() < 0.0001) {
+                    currentDirection = dashDirection.clone();
+                } else {
+                    currentDirection.normalize();
+                }
+
+                Vector behind = currentDirection.clone().multiply(-1.0);
+                for (int i = 0; i < spawnsPerTick; i++) {
+                    double offset = 0.8 + (i * flameSpacing);
+                    Location spawn = current.clone().add(behind.clone().multiply(offset)).add(0, 0.1, 0);
+                    dispatchMythicSpawn(worldName, mobId, spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ(), current.getYaw(), current.getPitch());
+                    damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage);
+                }
+
+                ticksLived++;
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
     }
 
     private void damageNearbyPlayers(Player source, Location center, double radius, double amount) {
@@ -159,7 +185,8 @@ public final class AbilityListener implements Listener {
         double health = target.getHealth();
         double result = health - amount;
         if (result <= 0.0) {
-            target.setHealth(0.0);
+            target.setNoDamageTicks(0);
+            target.damage(1000.0, source);
             return;
         }
 
