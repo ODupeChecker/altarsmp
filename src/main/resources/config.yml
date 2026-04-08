@@ -5,57 +5,44 @@ CURSED_BLADE:
     CUSTOM_MODEL_DATA: 15
     LORE:
       - "&7Legendary weapon of the tower."
-      - "&8Offhand: Sword Slash"
+      - "&8Offhand: Ruined Slash"
       - "&8Shift+Offhand: Cursed Flamethrower"
 
   PVP_ASPECTS:
-    DAMAGE_ENGINE: "BUKKIT_DAMAGE"
-    TRUE_DAMAGE_NOTE: "Uses Bukkit damage to preserve absorption hearts and totem pop behavior."
+    DAMAGE_ENGINE: "TRUE_DAMAGE"
     HIT_PLAYERS_ONLY: true
     FRIENDLY_FIRE: true
 
   ABILITIES:
-    SWORD_SLASH:
+    RUINED_SLASH:
       ENABLED: true
+      ABILITY_NAME: "Ruined Slash"
       TRIGGER: "OFFHAND_SWAP"
       SHIFT_REQUIRED: false
       COOLDOWN_MILLIS: 5500
-      SLASH_COUNT: 5
-      MAX_DISTANCE: 10.0
-      INTERVAL_TICKS: 4
-      DAMAGE: 5.0
-      RADIUS: 1.7
-      HEIGHT: 2.0
-      VISUAL:
-        USE_ARMOR_STAND: true
-        CUSTOM_NAME: "Tower Skeleton Slash"
-        MARKER: true
-        INVISIBLE: false
-        GRAVITY: false
-        INVULNERABLE: true
-        LIFETIME_TICKS: 20
-        PARTICLE_SWEEP_COUNT: 1
-        PARTICLE_CLOUD_COUNT: 8
+      DISTANCE_BLOCKS: 6
+      TRUE_DAMAGE: 5.0
+      BURST_RADIUS: 6.0
+      MM_MOB: "TOWER_SKELETON_SLASH_FX:1"
+      MM_WORLD: "worldo12"
+      SOUND: "littleroom_towerskeleton:sword_hit"
 
     CURSED_FLAMETHROWER:
       ENABLED: true
+      ABILITY_NAME: "Cursed Flamethrower"
       TRIGGER: "OFFHAND_SWAP"
       SHIFT_REQUIRED: true
       COOLDOWN_MILLIS: 12000
-      DURATION_TICKS: 60
-      MAX_RANGE: 8.0
-      RAY_STEP: 0.8
-      HIT_RADIUS: 1.15
-      DAMAGE_PER_TICK: 1.4
-      FIRE_TICKS: 40
-      VISUAL:
-        USE_TEXT_DISPLAY: true
-        GLYPH: "⛹"
-        SCALE: 4.0
-        LIFETIME_TICKS: 2
-        VIEW_RANGE: 1.0
-        BRIGHTNESS_BLOCK: 15
-        BRIGHTNESS_SKY: 15
+      DURATION_TICKS: 120
+      PULSE_INTERVAL_TICKS: 24
+      SOUND_INTERVAL_TICKS: 20
+      LENGTH_BLOCKS: 3.0
+      STEP_BLOCKS: 0.5
+      HIT_RADIUS: 0.8
+      TRUE_DAMAGE_PER_PULSE: 1.2
+      MM_MOB: "TOWERSKELETON_flamethrower_fx:1"
+      MM_WORLD: "worldo12"
+      LOOP_SOUND: "littleroom_towerskeleton:shield_flamethrower_loop"
 
   COMMANDS:
     RELOAD:
@@ -75,5 +62,5 @@ CURSED_BLADE:
     NO_PERMISSION: "&cYou do not have permission."
     PLAYER_ONLY: "&cOnly players can use this command."
     RELOAD_SUCCESS: "&aAltarly config reloaded."
-    SLASH_COOLDOWN: "&cSword Slash is on cooldown."
+    SLASH_COOLDOWN: "&cRuined Slash is on cooldown."
     FLAMETHROWER_COOLDOWN: "&cCursed Flamethrower is on cooldown."
