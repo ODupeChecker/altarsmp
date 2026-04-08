@@ -6,25 +6,35 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public final class AbilityListener implements Listener {
+    private static final String[] RUINSTEP_FLAME_FRAMES = {
+            "⛿", "⛾", "⛽", "⛼", "⛻", "⛺", "⛹", "⛸", "🁉", "🁊", " "
+    };
 
     private final JavaPlugin plugin;
     private final WeaponManager weaponManager;
@@ -111,30 +121,97 @@ public final class AbilityListener implements Listener {
 
         double dashDistance = cfg.getDouble(root + ".DASH_DISTANCE_BLOCKS", 8.0);
         double dashSpeed = cfg.getDouble(root + ".DASH_SPEED", 1.85);
-        double flameSpacing = cfg.getDouble(root + ".FLAME_SPACING_BLOCKS", 2.0);
+        double flameSpacing = Math.max(0.1, cfg.getDouble(root + ".FLAME_SPACING_BLOCKS", 1.15));
         double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.75);
         double trueDamage = cfg.getDouble(root + ".TRUE_DAMAGE", 3.0);
-        String worldName = cfg.getString(root + ".MM_WORLD", player.getWorld().getName());
-        String mobId = cfg.getString(root + ".MM_MOB", "TOWERSKELETON_flamethrower_fx:1");
+        double dashLift = cfg.getDouble(root + ".DASH_LIFT_VELOCITY", 0.42);
+        double trailOffset = cfg.getDouble(root + ".TRAIL_OFFSET_BLOCKS", 0.9);
+        int trailTickInterval = Math.max(1, cfg.getInt(root + ".TRAIL_TICK_INTERVAL", 1));
+        int maxAirTicks = Math.max(1, cfg.getInt(root + ".MAX_AIR_TICKS", 30));
+        float flameScale = (float) cfg.getDouble(root + ".FLAME_SCALE", 4.0);
 
         Location start = player.getLocation();
         Vector horizontalDirection = start.getDirection().setY(0).normalize();
         if (horizontalDirection.lengthSquared() == 0) {
             horizontalDirection = new Vector(0, 0, 1);
         }
+        final Vector dashDirection = horizontalDirection.clone();
+        Vector dashVelocity = dashDirection.clone().multiply(dashSpeed).setY(dashLift);
+        player.setVelocity(dashVelocity);
 
-        player.setVelocity(horizontalDirection.clone().multiply(dashSpeed));
+        int maxTicksFromDistance = Math.max(1, (int) Math.ceil(dashDistance / Math.max(0.01, dashSpeed)));
+        int tickLimit = Math.min(maxAirTicks, maxTicksFromDistance + maxAirTicks);
+        new BukkitRunnable() {
+            int ticks = 0;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || player.isDead()) {
+                    cancel();
+                    return;
+                }
+
+                Vector travelDirection = player.getVelocity().clone().setY(0);
+                if (travelDirection.lengthSquared() < 0.0001) {
+                    travelDirection = dashDirection.clone();
+                } else {
+                    travelDirection.normalize();
+                }
+
+                Location spawn = player.getLocation()
+                        .add(travelDirection.clone().multiply(-Math.max(flameSpacing, trailOffset)))
+                        .add(0, 0.15, 0);
+                spawnRuinstepFlame(spawn, flameScale);
+                damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage);
+
+                ticks += trailTickInterval;
+                if ((ticks > 0 && player.isOnGround()) || ticks >= tickLimit) {
+                    cancel();
+                }
+            }
+        }.runTaskTimer(plugin, 0L, trailTickInterval);
+
         playSound(player, cfg.getString(root + ".DASH_SOUND", "minecraft:entity.blaze.shoot"), 1.0f, 0.95f);
         playSound(player, cfg.getString(root + ".DASH_SOUND_SECONDARY", "minecraft:entity.player.attack.knockback"), 0.9f, 1.1f);
+    }
 
-        for (double distance = 0.0; distance <= dashDistance + 0.0001; distance += flameSpacing) {
-            Location point = start.clone().add(horizontalDirection.clone().multiply(distance));
-            Location spawn = point.clone().add(0, 0.1, 0);
-            dispatchMythicSpawn(worldName, mobId, spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ(), start.getYaw(), start.getPitch());
-            spawn.getWorld().spawnParticle(Particle.FLAME, spawn.clone().add(0, 0.7, 0), 8, 0.2, 0.1, 0.2, 0.005);
-            spawn.getWorld().spawnParticle(Particle.SMOKE, spawn.clone().add(0, 0.7, 0), 4, 0.15, 0.1, 0.15, 0.002);
-            damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage);
+    private void spawnRuinstepFlame(Location location, float scale) {
+        if (location.getWorld() == null) {
+            return;
         }
+
+        TextDisplay display = (TextDisplay) location.getWorld().spawnEntity(location, EntityType.TEXT_DISPLAY);
+        display.setText(RUINSTEP_FLAME_FRAMES[0]);
+        display.setBillboard(Display.Billboard.CENTER);
+        display.setBackgroundColor(Color.fromARGB(0, 0, 0, 0));
+        display.setBrightness(new Display.Brightness(15, 15));
+        display.setTransformation(new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf(),
+                new Vector3f(scale, scale, scale),
+                new Quaternionf()
+        ));
+
+        new BukkitRunnable() {
+            int frame = 1;
+
+            @Override
+            public void run() {
+                if (!display.isValid()) {
+                    cancel();
+                    return;
+                }
+
+                if (frame >= RUINSTEP_FLAME_FRAMES.length) {
+                    display.remove();
+                    cancel();
+                    return;
+                }
+
+                display.setText(RUINSTEP_FLAME_FRAMES[frame]);
+                frame++;
+            }
+        }.runTaskTimer(plugin, 2L, 2L);
     }
 
     private void damageNearbyPlayers(Player source, Location center, double radius, double amount) {
@@ -159,7 +236,8 @@ public final class AbilityListener implements Listener {
         double health = target.getHealth();
         double result = health - amount;
         if (result <= 0.0) {
-            target.setHealth(0.0);
+            target.setNoDamageTicks(0);
+            target.damage(1000.0, source);
             return;
         }
 
