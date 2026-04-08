@@ -6,35 +6,25 @@ import net.kyori.adventure.sound.Sound;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
-import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.configuration.file.FileConfiguration;
-import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.TextDisplay;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
 public final class AbilityListener implements Listener {
-    private static final String[] RUINSTEP_FLAME_FRAMES = {
-            "⛿", "⛾", "⛽", "⛼", "⛻", "⛺", "⛹", "⛸", "🁉", "🁊", " "
-    };
 
     private final JavaPlugin plugin;
     private final WeaponManager weaponManager;
@@ -124,11 +114,8 @@ public final class AbilityListener implements Listener {
         double flameSpacing = Math.max(0.1, cfg.getDouble(root + ".FLAME_SPACING_BLOCKS", 2.0));
         double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.75);
         double trueDamage = cfg.getDouble(root + ".TRUE_DAMAGE", 3.0);
-        double dashLift = cfg.getDouble(root + ".DASH_LIFT_VELOCITY", 0.42);
-        double trailOffset = cfg.getDouble(root + ".TRAIL_OFFSET_BLOCKS", 0.9);
-        int trailTickInterval = Math.max(1, cfg.getInt(root + ".TRAIL_TICK_INTERVAL", 1));
-        int maxAirTicks = Math.max(1, cfg.getInt(root + ".MAX_AIR_TICKS", 30));
-        float flameScale = (float) cfg.getDouble(root + ".FLAME_SCALE", 4.0);
+        String worldName = cfg.getString(root + ".MM_WORLD", player.getWorld().getName());
+        String mobId = cfg.getString(root + ".MM_MOB", "TOWERSKELETON_flamethrower_fx:1");
 
         Location start = player.getLocation();
         Vector horizontalDirection = start.getDirection().setY(0).normalize();
@@ -141,7 +128,6 @@ public final class AbilityListener implements Listener {
         player.setVelocity(dashVelocity);
         playSound(player, cfg.getString(root + ".DASH_SOUND", "minecraft:entity.blaze.shoot"), 1.0f, 0.95f);
         playSound(player, cfg.getString(root + ".DASH_SOUND_SECONDARY", "minecraft:entity.player.attack.knockback"), 0.9f, 1.1f);
-    }
 
         int dashTicks = Math.max(1, (int) Math.ceil(dashDistance / Math.max(0.01, dashSpeed)));
         int spawnsPerTick = Math.max(1, (int) Math.round(1.0 / flameSpacing));
