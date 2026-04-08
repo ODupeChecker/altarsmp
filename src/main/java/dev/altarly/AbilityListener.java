@@ -7,6 +7,7 @@ import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -30,7 +31,7 @@ public final class AbilityListener implements Listener {
     private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
 
     private final Map<UUID, Long> slashCooldowns = new HashMap<>();
-    private final Map<UUID, Long> flamethrowerCooldowns = new HashMap<>();
+    private final Map<UUID, Long> ruinstepCooldowns = new HashMap<>();
 
     public AbilityListener(JavaPlugin plugin, WeaponManager weaponManager) {
         this.plugin = plugin;
@@ -47,8 +48,8 @@ public final class AbilityListener implements Listener {
 
         event.setCancelled(true);
         boolean sneaking = player.isSneaking();
-        if (sneaking && plugin.getConfig().getBoolean("CURSED_BLADE.ABILITIES.CURSED_FLAMETHROWER.ENABLED", true)) {
-            castFlamethrower(player);
+        if (sneaking && plugin.getConfig().getBoolean("CURSED_BLADE.ABILITIES.RUINSTEP.ENABLED", true)) {
+            castRuinstep(player);
         } else if (!sneaking && plugin.getConfig().getBoolean("CURSED_BLADE.ABILITIES.RUINED_SLASH.ENABLED", true)) {
             castRuinedSlash(player);
         }
@@ -67,9 +68,10 @@ public final class AbilityListener implements Listener {
         slashCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         showCooldownBar(player, cfg.getString(root + ".ABILITY_NAME", "Ruined Slash"), cooldownMillis, BossBar.Color.PURPLE);
 
-        int totalBlocks = cfg.getInt(root + ".DISTANCE_BLOCKS", 6);
+        int totalBlocks = cfg.getInt(root + ".DISTANCE_BLOCKS", 7);
         double damage = cfg.getDouble(root + ".TRUE_DAMAGE", 5.0);
-        double burstRadius = cfg.getDouble(root + ".BURST_RADIUS", 6.0);
+        double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.65);
+        int startOffset = cfg.getInt(root + ".START_OFFSET_BLOCKS", 1);
         String worldName = cfg.getString(root + ".MM_WORLD", player.getWorld().getName());
         String mobId = cfg.getString(root + ".MM_MOB", "TOWER_SKELETON_SLASH_FX:1");
 
@@ -78,87 +80,61 @@ public final class AbilityListener implements Listener {
         if (forward.lengthSquared() == 0) {
             forward = new Vector(0, 0, 1);
         }
-        Vector right = new Vector(-forward.getZ(), 0, forward.getX()).normalize();
 
-        Vector[] diagonalDirs = new Vector[]{
-                forward.clone().add(right).normalize(),
-                forward.clone().subtract(right).normalize(),
-                forward.clone().multiply(-1).add(right).normalize(),
-                forward.clone().multiply(-1).subtract(right).normalize()
-        };
+        for (int step = 0; step < totalBlocks; step++) {
+            int distance = startOffset + step;
+            Location point = origin.clone().add(forward.clone().multiply(distance));
+            Location block = point.getBlock().getLocation();
 
-        for (int distance = 1; distance <= totalBlocks; distance++) {
-            for (Vector diagonalDir : diagonalDirs) {
-                Location point = origin.clone().add(diagonalDir.clone().multiply(distance));
-                Location block = point.getBlock().getLocation();
-                dispatchMythicSpawn(worldName, mobId, block.getBlockX(), block.getBlockY(), block.getBlockZ(), origin.getYaw(), origin.getPitch());
-            }
+            dispatchMythicSpawn(worldName, mobId, block.getBlockX(), block.getBlockY(), block.getBlockZ(), origin.getYaw(), origin.getPitch());
+            point.getWorld().spawnParticle(Particle.SWEEP_ATTACK, point.clone().add(0, 1.1, 0), 1, 0, 0, 0, 0);
+            point.getWorld().spawnParticle(Particle.CRIT, point.clone().add(0, 1.0, 0), 4, 0.15, 0.15, 0.15, 0.02);
+            damageNearbyPlayers(player, point.clone().add(0, 1.0, 0), hitRadius, damage);
         }
 
-        playSound(player, cfg.getString(root + ".SOUND", "littleroom_towerskeleton:sword_hit"), 1.0f, 1.0f);
-        damageNearbyPlayers(player, player.getLocation(), burstRadius, damage);
+        playSound(player, cfg.getString(root + ".SOUND", "littleroom_towerskeleton:sword_hit"), 1.0f, 1.15f);
+        playSound(player, cfg.getString(root + ".SOUND_SECONDARY", "minecraft:entity.player.attack.sweep"), 0.85f, 1.2f);
     }
 
-    private void castFlamethrower(Player player) {
+    private void castRuinstep(Player player) {
         FileConfiguration cfg = plugin.getConfig();
-        String root = "CURSED_BLADE.ABILITIES.CURSED_FLAMETHROWER";
+        String root = "CURSED_BLADE.ABILITIES.RUINSTEP";
 
         long cooldownMillis = cfg.getLong(root + ".COOLDOWN_MILLIS", 12000L);
-        if (isOnCooldown(player.getUniqueId(), flamethrowerCooldowns, cooldownMillis)) {
-            sendMessage(player, cfg.getString("CURSED_BLADE.MESSAGES.FLAMETHROWER_COOLDOWN", "&cCursed Flamethrower is on cooldown."));
+        if (isOnCooldown(player.getUniqueId(), ruinstepCooldowns, cooldownMillis)) {
+            sendMessage(player, cfg.getString("CURSED_BLADE.MESSAGES.RUINSTEP_COOLDOWN", "&cRuinstep is on cooldown."));
             return;
         }
 
-        flamethrowerCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
-        showCooldownBar(player, cfg.getString(root + ".ABILITY_NAME", "Cursed Flamethrower"), cooldownMillis, BossBar.Color.RED);
+        ruinstepCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+        showCooldownBar(player, cfg.getString(root + ".ABILITY_NAME", "Ruinstep"), cooldownMillis, BossBar.Color.RED);
 
-        int durationTicks = cfg.getInt(root + ".DURATION_TICKS", 120);
-        long pulseTicks = cfg.getLong(root + ".PULSE_INTERVAL_TICKS", 24L);
-        long soundTicks = cfg.getLong(root + ".SOUND_INTERVAL_TICKS", 20L);
-        double maxDistance = cfg.getDouble(root + ".LENGTH_BLOCKS", 3.0);
-        double step = cfg.getDouble(root + ".STEP_BLOCKS", 0.5);
-        double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.8);
-        double tickDamage = cfg.getDouble(root + ".TRUE_DAMAGE_PER_PULSE", 1.2);
+        double dashDistance = cfg.getDouble(root + ".DASH_DISTANCE_BLOCKS", 8.0);
+        double dashSpeed = cfg.getDouble(root + ".DASH_SPEED", 1.85);
+        double flameSpacing = cfg.getDouble(root + ".FLAME_SPACING_BLOCKS", 2.0);
+        double hitRadius = cfg.getDouble(root + ".HIT_RADIUS", 0.75);
+        double trueDamage = cfg.getDouble(root + ".TRUE_DAMAGE", 3.0);
         String worldName = cfg.getString(root + ".MM_WORLD", player.getWorld().getName());
         String mobId = cfg.getString(root + ".MM_MOB", "TOWERSKELETON_flamethrower_fx:1");
 
-        new BukkitRunnable() {
-            int livedTicks = 0;
+        Location start = player.getLocation();
+        Vector horizontalDirection = start.getDirection().setY(0).normalize();
+        if (horizontalDirection.lengthSquared() == 0) {
+            horizontalDirection = new Vector(0, 0, 1);
+        }
 
-            @Override
-            public void run() {
-                if (!player.isOnline() || player.isDead() || livedTicks >= durationTicks) {
-                    cancel();
-                    return;
-                }
+        player.setVelocity(horizontalDirection.clone().multiply(dashSpeed));
+        playSound(player, cfg.getString(root + ".DASH_SOUND", "minecraft:entity.blaze.shoot"), 1.0f, 0.95f);
+        playSound(player, cfg.getString(root + ".DASH_SOUND_SECONDARY", "minecraft:entity.player.attack.knockback"), 0.9f, 1.1f);
 
-                Location eye = player.getEyeLocation();
-                Vector direction = eye.getDirection().normalize();
-
-                for (double dist = step; dist <= maxDistance + 0.0001; dist += step) {
-                    Location point = eye.clone().add(direction.clone().multiply(dist));
-                    dispatchMythicSpawn(worldName, mobId, point.getBlockX(), point.getBlockY(), point.getBlockZ(), eye.getYaw(), eye.getPitch());
-                    damageNearbyPlayers(player, point, hitRadius, tickDamage);
-                }
-
-                livedTicks += pulseTicks;
-            }
-        }.runTaskTimer(plugin, 0L, pulseTicks);
-
-        new BukkitRunnable() {
-            int livedTicks = 0;
-
-            @Override
-            public void run() {
-                if (!player.isOnline() || player.isDead() || livedTicks >= durationTicks) {
-                    cancel();
-                    return;
-                }
-
-                playSound(player, cfg.getString(root + ".LOOP_SOUND", "littleroom_towerskeleton:shield_flamethrower_loop"), 1.0f, 1.0f);
-                livedTicks += (int) soundTicks;
-            }
-        }.runTaskTimer(plugin, 0L, soundTicks);
+        for (double distance = 0.0; distance <= dashDistance + 0.0001; distance += flameSpacing) {
+            Location point = start.clone().add(horizontalDirection.clone().multiply(distance));
+            Location spawn = point.clone().add(0, 0.1, 0);
+            dispatchMythicSpawn(worldName, mobId, spawn.getBlockX(), spawn.getBlockY(), spawn.getBlockZ(), start.getYaw(), start.getPitch());
+            spawn.getWorld().spawnParticle(Particle.FLAME, spawn.clone().add(0, 0.7, 0), 8, 0.2, 0.1, 0.2, 0.005);
+            spawn.getWorld().spawnParticle(Particle.SMOKE, spawn.clone().add(0, 0.7, 0), 4, 0.15, 0.1, 0.15, 0.002);
+            damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage);
+        }
     }
 
     private void damageNearbyPlayers(Player source, Location center, double radius, double amount) {
@@ -181,9 +157,15 @@ public final class AbilityListener implements Listener {
 
     private void applyTrueDamage(Player source, LivingEntity target, double amount) {
         double health = target.getHealth();
+        double result = health - amount;
+        if (result <= 0.0) {
+            target.setHealth(0.0);
+            return;
+        }
+
         target.setNoDamageTicks(0);
-        target.damage(0.0001, source);
-        target.setHealth(Math.max(0.0, health - amount));
+        target.damage(0.001, source);
+        target.setHealth(result);
     }
 
     private void showCooldownBar(Player player, String abilityName, long cooldownMillis, BossBar.Color color) {

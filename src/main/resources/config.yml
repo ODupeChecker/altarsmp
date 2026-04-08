@@ -6,7 +6,7 @@ CURSED_BLADE:
     LORE:
       - "&7Legendary weapon of the tower."
       - "&8Offhand: Ruined Slash"
-      - "&8Shift+Offhand: Cursed Flamethrower"
+      - "&8Shift+Offhand: Ruinstep"
 
   PVP_ASPECTS:
     DAMAGE_ENGINE: "TRUE_DAMAGE"
@@ -19,30 +19,31 @@ CURSED_BLADE:
       ABILITY_NAME: "Ruined Slash"
       TRIGGER: "OFFHAND_SWAP"
       SHIFT_REQUIRED: false
-      COOLDOWN_MILLIS: 5500
-      DISTANCE_BLOCKS: 6
+      COOLDOWN_MILLIS: 5000
+      START_OFFSET_BLOCKS: 1
+      DISTANCE_BLOCKS: 7
       TRUE_DAMAGE: 5.0
-      BURST_RADIUS: 6.0
+      HIT_RADIUS: 0.65
       MM_MOB: "TOWER_SKELETON_SLASH_FX:1"
       MM_WORLD: "worldo12"
       SOUND: "littleroom_towerskeleton:sword_hit"
+      SOUND_SECONDARY: "minecraft:entity.player.attack.sweep"
 
-    CURSED_FLAMETHROWER:
+    RUINSTEP:
       ENABLED: true
-      ABILITY_NAME: "Cursed Flamethrower"
+      ABILITY_NAME: "Ruinstep"
       TRIGGER: "OFFHAND_SWAP"
       SHIFT_REQUIRED: true
-      COOLDOWN_MILLIS: 12000
-      DURATION_TICKS: 120
-      PULSE_INTERVAL_TICKS: 24
-      SOUND_INTERVAL_TICKS: 20
-      LENGTH_BLOCKS: 3.0
-      STEP_BLOCKS: 0.5
-      HIT_RADIUS: 0.8
-      TRUE_DAMAGE_PER_PULSE: 1.2
+      COOLDOWN_MILLIS: 9000
+      DASH_DISTANCE_BLOCKS: 8.0
+      DASH_SPEED: 1.85
+      FLAME_SPACING_BLOCKS: 2.0
+      HIT_RADIUS: 0.75
+      TRUE_DAMAGE: 3.0
       MM_MOB: "TOWERSKELETON_flamethrower_fx:1"
       MM_WORLD: "worldo12"
-      LOOP_SOUND: "littleroom_towerskeleton:shield_flamethrower_loop"
+      DASH_SOUND: "minecraft:entity.blaze.shoot"
+      DASH_SOUND_SECONDARY: "minecraft:entity.player.attack.knockback"
 
   COMMANDS:
     RELOAD:
@@ -63,4 +64,4 @@ CURSED_BLADE:
     PLAYER_ONLY: "&cOnly players can use this command."
     RELOAD_SUCCESS: "&aAltarly config reloaded."
     SLASH_COOLDOWN: "&cRuined Slash is on cooldown."
-    FLAMETHROWER_COOLDOWN: "&cCursed Flamethrower is on cooldown."
+    RUINSTEP_COOLDOWN: "&cRuinstep is on cooldown."
