@@ -13,6 +13,8 @@ CURSED_BLADE:
     HIT_PLAYERS_ONLY: true
     FRIENDLY_FIRE: true
 
+  SOUND_BROADCAST_RADIUS: 15.0
+
   ABILITIES:
     RUINED_SLASH:
       ENABLED: true
@@ -66,3 +68,44 @@ CURSED_BLADE:
     RELOAD_SUCCESS: "&aAltarly config reloaded."
     SLASH_COOLDOWN: "&cRuined Slash is on cooldown."
     RUINSTEP_COOLDOWN: "&cRuinstep is on cooldown."
+
+ENDER_BLADE:
+  ITEM:
+    MATERIAL: NETHERITE_SWORD
+    DISPLAY_NAME: "&5&lEnder Blade"
+    CUSTOM_MODEL_DATA: 16
+    LORE:
+      - "&7Legendary voidforged blade."
+      - "&8Offhand: Blink Strike"
+      - "&8Shift+Offhand: Ender Chain"
+
+  ABILITIES:
+    BLINK_STRIKE:
+      ENABLED: true
+      ABILITY_NAME: "Blink Strike"
+      COOLDOWN_MILLIS: 7000
+      RANGE_BLOCKS: 7.0
+      BEHIND_DISTANCE: 1.2
+      TRUE_DAMAGE: 5.0
+      SOUND: "minecraft:entity.enderman.death"
+      SOUND_RADIUS: 10.0
+
+    ENDER_CHAIN:
+      ENABLED: true
+      ABILITY_NAME: "Ender Chain"
+      COOLDOWN_MILLIS: 16000
+      RADIUS_BLOCKS: 20.0
+      DURATION_TICKS: 140
+      SOUND: "minecraft:entity.enderman.death"
+      SOUND_RADIUS: 10.0
+
+  COMMANDS:
+    LEGS:
+      GIVE_ITEM_SLOT: 1
+
+  MESSAGES:
+    PREFIX: "&8[&5Altarly&8] "
+    BLINK_STRIKE_COOLDOWN: "&cBlink Strike is on cooldown."
+    ENDER_CHAIN_COOLDOWN: "&cEnder Chain is on cooldown."
+    NO_ENDER_TARGET: "&cNo Ender Target Found"
+    NO_CHAIN_TARGETS: "&cNO Enemies Found"

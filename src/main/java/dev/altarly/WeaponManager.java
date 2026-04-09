@@ -14,41 +14,63 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 public final class WeaponManager {
+    public static final String CURSED_BLADE_ID = "cursed_blade";
+    public static final String ENDER_BLADE_ID = "ender_blade";
+
     private final JavaPlugin plugin;
     private final NamespacedKey weaponKey;
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
 
     public WeaponManager(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.weaponKey = new NamespacedKey(plugin, "cursed_blade");
+        this.weaponKey = new NamespacedKey(plugin, "legendary_weapon_id");
     }
 
-    public ItemStack createLegendaryWeapon() {
+    public ItemStack createCursedBlade() {
+        return createWeapon("CURSED_BLADE", CURSED_BLADE_ID);
+    }
+
+    public ItemStack createEnderBlade() {
+        return createWeapon("ENDER_BLADE", ENDER_BLADE_ID);
+    }
+
+    public String getWeaponId(ItemStack stack) {
+        if (stack == null || stack.getType() != Material.NETHERITE_SWORD || !stack.hasItemMeta()) {
+            return null;
+        }
+        ItemMeta meta = stack.getItemMeta();
+        return meta.getPersistentDataContainer().get(weaponKey, PersistentDataType.STRING);
+    }
+
+    public boolean isCursedBlade(ItemStack stack) {
+        return CURSED_BLADE_ID.equals(getWeaponId(stack));
+    }
+
+    public boolean isEnderBlade(ItemStack stack) {
+        return ENDER_BLADE_ID.equals(getWeaponId(stack));
+    }
+
+    private ItemStack createWeapon(String configRoot, String weaponId) {
         FileConfiguration cfg = plugin.getConfig();
-        String root = "CURSED_BLADE";
 
-        ItemStack item = new ItemStack(Material.NETHERITE_SWORD);
+        Material material = Material.matchMaterial(cfg.getString(configRoot + ".ITEM.MATERIAL", "NETHERITE_SWORD"));
+        if (material == null) {
+            material = Material.NETHERITE_SWORD;
+        }
+
+        ItemStack item = new ItemStack(material);
         ItemMeta meta = item.getItemMeta();
-        meta.customName(legacySerializer.deserialize(cfg.getString(root + ".ITEM.DISPLAY_NAME", "&5Cursed Blade")));
-        meta.setCustomModelData(cfg.getInt(root + ".ITEM.CUSTOM_MODEL_DATA", 15));
+        meta.customName(legacySerializer.deserialize(cfg.getString(configRoot + ".ITEM.DISPLAY_NAME", "&5Legendary Blade")));
+        meta.setCustomModelData(cfg.getInt(configRoot + ".ITEM.CUSTOM_MODEL_DATA", 0));
 
-        List<Component> lore = cfg.getStringList(root + ".ITEM.LORE")
+        List<Component> lore = cfg.getStringList(configRoot + ".ITEM.LORE")
                 .stream()
                 .map(legacySerializer::deserialize)
                 .collect(Collectors.toList());
         meta.lore(lore);
 
-        meta.getPersistentDataContainer().set(weaponKey, PersistentDataType.BYTE, (byte) 1);
+        meta.getPersistentDataContainer().set(weaponKey, PersistentDataType.STRING, weaponId);
         item.setItemMeta(meta);
         return item;
-    }
-
-    public boolean isLegendaryWeapon(ItemStack stack) {
-        if (stack == null || stack.getType() != Material.NETHERITE_SWORD || !stack.hasItemMeta()) {
-            return false;
-        }
-        ItemMeta meta = stack.getItemMeta();
-        Byte marker = meta.getPersistentDataContainer().get(weaponKey, PersistentDataType.BYTE);
-        return marker != null && marker == (byte) 1;
     }
 }
