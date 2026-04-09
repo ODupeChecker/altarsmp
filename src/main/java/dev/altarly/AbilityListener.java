@@ -163,7 +163,7 @@ public final class AbilityListener implements Listener {
             dispatchMythicSpawn(worldName, mobId, block.getBlockX(), block.getBlockY(), block.getBlockZ(), origin.getYaw(), origin.getPitch());
             point.getWorld().spawnParticle(Particle.SWEEP_ATTACK, point.clone().add(0, 1.1, 0), 1, 0, 0, 0, 0);
             point.getWorld().spawnParticle(Particle.CRIT, point.clone().add(0, 1.0, 0), 4, 0.15, 0.15, 0.15, 0.02);
-            damageNearbyPlayers(player, point.clone().add(0, 1.0, 0), hitRadius, damage, true);
+            damageNearbyPlayers(player, point.clone().add(0, 1.0, 0), hitRadius, damage);
         }
 
         playSoundInRadius(player, plugin.getConfig().getString(root + ".SOUND", "littleroom_towerskeleton:sword_hit"), 1.0f, 1.15f,
@@ -233,7 +233,7 @@ public final class AbilityListener implements Listener {
                 Vector behind = currentDirection.clone().multiply(-1.0);
                 Location spawn = current.clone().add(behind.multiply(flameOffset)).add(0, flameHeight, 0);
                 spawnFlameDisplay(spawn, displayScale);
-                damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage, true);
+                damageNearbyPlayers(player, spawn.clone().add(0, 0.8, 0), hitRadius, trueDamage);
 
                 ticksLived++;
             }
@@ -459,16 +459,12 @@ public final class AbilityListener implements Listener {
         }.runTaskTimer(plugin, 2L, 2L);
     }
 
-    private void damageNearbyPlayers(Player source, Location center, double radius, double amount, boolean trueDamage) {
+    private void damageNearbyPlayers(Player source, Location center, double radius, double amount) {
         for (Entity entity : center.getWorld().getNearbyEntities(center, radius, radius, radius)) {
             if (!(entity instanceof Player target) || !isEnemyTarget(source, target)) {
                 continue;
             }
-            if (trueDamage) {
-                applyTrueDamage(source, target, amount);
-            } else {
-                target.damage(amount, source);
-            }
+            applyTrueDamage(source, target, amount);
         }
     }
 
