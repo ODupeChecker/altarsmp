@@ -10,3 +10,5 @@ commands:
 permissions:
   altarly.admin:
     default: op
+
+softdepend: [BetterTeams]

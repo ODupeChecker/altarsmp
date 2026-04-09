@@ -9,7 +9,8 @@ public final class AltarlyPlugin extends JavaPlugin {
         saveDefaultConfig();
 
         WeaponManager weaponManager = new WeaponManager(this);
-        AbilityListener abilityListener = new AbilityListener(this, weaponManager);
+        TeamIntegration teamIntegration = new TeamIntegration();
+        AbilityListener abilityListener = new AbilityListener(this, weaponManager, teamIntegration);
         AltarlyCommand altarlyCommand = new AltarlyCommand(this, weaponManager);
 
         getServer().getPluginManager().registerEvents(abilityListener, this);
