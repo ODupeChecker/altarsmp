@@ -11,6 +11,7 @@ import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
+import org.bukkit.EntityEffect;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.TextDisplay;
@@ -20,6 +21,8 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
@@ -108,7 +111,6 @@ public final class AbilityListener implements Listener {
         if (event instanceof EntityDamageByEntityEvent byEntity && byEntity.getDamager() instanceof Player playerDamager) {
             attacker = playerDamager;
         }
-        Player chainCaster = Bukkit.getPlayer(chain.caster());
 
         for (UUID linkedId : chain.members) {
             if (linkedId.equals(damaged.getUniqueId())) {
@@ -120,11 +122,9 @@ public final class AbilityListener implements Listener {
             }
             chainPropagationGuard.add(linkedId);
             try {
-                Player damageSource = attacker != null ? attacker : chainCaster;
-                if (damageSource != null && damageSource.isOnline() && !damageSource.isDead()) {
-                    applyTrueDamage(damageSource, linkedPlayer, mirroredDamage);
+                if (attacker != null) {
+                    linkedPlayer.damage(mirroredDamage, attacker);
                 } else {
-                    linkedPlayer.setNoDamageTicks(0);
                     linkedPlayer.damage(mirroredDamage);
                 }
             } finally {
@@ -144,8 +144,6 @@ public final class AbilityListener implements Listener {
 
         slashCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         showCooldownBar(player, plugin.getConfig().getString(root + ".ABILITY_NAME", "Ruined Slash"), cooldownMillis, BossBar.Color.PURPLE);
-        player.swingMainHand();
-        player.swingOffHand();
 
         int totalBlocks = plugin.getConfig().getInt(root + ".DISTANCE_BLOCKS", 7);
         double damage = plugin.getConfig().getDouble(root + ".TRUE_DAMAGE", 5.0);
@@ -188,8 +186,6 @@ public final class AbilityListener implements Listener {
 
         ruinstepCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
         showCooldownBar(player, plugin.getConfig().getString(root + ".ABILITY_NAME", "Ruinstep"), cooldownMillis, BossBar.Color.RED);
-        player.swingMainHand();
-        player.swingOffHand();
 
         double dashSpeed = plugin.getConfig().getDouble(root + ".DASH_SPEED", 1.85);
         double liftVelocity = plugin.getConfig().getDouble(root + ".LIFT_VELOCITY", 0.42);
@@ -264,8 +260,6 @@ public final class AbilityListener implements Listener {
 
         blinkStrikeCooldowns.put(caster.getUniqueId(), System.currentTimeMillis());
         showCooldownBar(caster, plugin.getConfig().getString(root + ".ABILITY_NAME", "Blink Strike"), cooldownMillis, BossBar.Color.PURPLE);
-        caster.swingMainHand();
-        caster.swingOffHand();
 
         double behindDistance = plugin.getConfig().getDouble(root + ".BEHIND_DISTANCE", 1.2);
         Vector backwards = target.getLocation().getDirection().setY(0).normalize().multiply(-behindDistance);
@@ -304,8 +298,6 @@ public final class AbilityListener implements Listener {
 
         enderChainCooldowns.put(caster.getUniqueId(), System.currentTimeMillis());
         showCooldownBar(caster, plugin.getConfig().getString(root + ".ABILITY_NAME", "Ender Chain"), cooldownMillis, BossBar.Color.PURPLE);
-        caster.swingMainHand();
-        caster.swingOffHand();
 
         Player first = targets.get(0);
         Player second = targets.get(1);
@@ -367,15 +359,14 @@ public final class AbilityListener implements Listener {
 
     private void spawnChainParticles(Location start, Location end) {
         Vector line = end.toVector().subtract(start.toVector());
-        int points = Math.max(20, (int) (line.length() * 10));
+        int points = Math.max(8, (int) (line.length() * 4));
         Vector step = line.multiply(1.0 / points);
 
         Location point = start.clone();
         for (int i = 0; i <= points; i++) {
-            point.getWorld().spawnParticle(Particle.DRAGON_BREATH, point, 3, 0.04, 0.04, 0.04, 0.001);
-            point.getWorld().spawnParticle(Particle.PORTAL, point, 3, 0.05, 0.05, 0.05, 0.02);
-            point.getWorld().spawnParticle(Particle.DUST, point, 2, 0.015, 0.015, 0.015,
-                    new Particle.DustOptions(Color.fromRGB(170, 60, 255), 1.6f));
+            point.getWorld().spawnParticle(Particle.PORTAL, point, 2, 0.03, 0.03, 0.03, 0.02);
+            point.getWorld().spawnParticle(Particle.DUST, point, 1, 0.01, 0.01, 0.01,
+                    new Particle.DustOptions(Color.fromRGB(170, 60, 255), 1.2f));
             point.add(step);
         }
     }
@@ -499,33 +490,8 @@ public final class AbilityListener implements Listener {
     }
 
     private void applyTrueDamage(Player source, LivingEntity target, double amount) {
-        if (amount <= 0.0 || target.isDead()) {
-            return;
-        }
-
-        if (target instanceof Player playerTarget) {
-            double absorption = playerTarget.getAbsorptionAmount();
-            if (absorption > 0.0) {
-                double absorbed = Math.min(absorption, amount);
-                playerTarget.setAbsorptionAmount(absorption - absorbed);
-                amount -= absorbed;
-                if (amount <= 0.0) {
-                    return;
-                }
-            }
-        }
-
-        double health = target.getHealth();
-        double result = health - amount;
         target.setNoDamageTicks(0);
-
-        if (result <= 0.0) {
-            target.damage(1000.0, source);
-            return;
-        }
-
-        target.damage(0.001, source);
-        target.setHealth(result);
+        target.damage(amount, source);
     }
 
     private void showCooldownBar(Player player, String abilityName, long cooldownMillis, BossBar.Color color) {
