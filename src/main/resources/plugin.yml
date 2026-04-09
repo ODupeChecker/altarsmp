@@ -1,9 +1,8 @@
 name: Altarly
-version: 1.1.0
+version: 1.0.0
 main: dev.altarly.AltarlyPlugin
 api-version: '1.21'
 authors: [Altarly]
-softdepend: [BetterTeams]
 commands:
   altarly:
     description: Altarly admin command

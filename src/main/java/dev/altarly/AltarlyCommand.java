@@ -37,33 +37,31 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
-        if (args[0].equalsIgnoreCase(cfg.getString("ALTARS.COMMANDS.RELOAD.ALIAS", "reload"))) {
+        if (args[0].equalsIgnoreCase(cfg.getString("CURSED_BLADE.COMMANDS.RELOAD.ALIAS", "reload"))) {
             if (!sender.hasPermission("altarly.admin")) {
-                sender.sendMessage(color(cfg.getString("ALTARS.MESSAGES.NO_PERMISSION", "&cYou do not have permission.")));
+                sender.sendMessage(color(cfg.getString("CURSED_BLADE.MESSAGES.NO_PERMISSION", "&cYou do not have permission.")));
                 return true;
             }
 
             plugin.reloadConfig();
-            sender.sendMessage(color(cfg.getString("ALTARS.MESSAGES.RELOAD_SUCCESS", "&aAltarly config reloaded.")));
+            sender.sendMessage(color(cfg.getString("CURSED_BLADE.MESSAGES.RELOAD_SUCCESS", "&aAltarly config reloaded.")));
             return true;
         }
 
-        if (args[0].equalsIgnoreCase(cfg.getString("ALTARS.COMMANDS.LEGS.ALIAS", "legs"))) {
+        if (args[0].equalsIgnoreCase(cfg.getString("CURSED_BLADE.COMMANDS.LEGS.ALIAS", "legs"))) {
             if (!(sender instanceof Player player)) {
-                sender.sendMessage(color(cfg.getString("ALTARS.MESSAGES.PLAYER_ONLY", "&cOnly players can use this command.")));
+                sender.sendMessage(color(cfg.getString("CURSED_BLADE.MESSAGES.PLAYER_ONLY", "&cOnly players can use this command.")));
                 return true;
             }
             if (!player.isOp()) {
-                player.sendMessage(color(cfg.getString("ALTARS.MESSAGES.NO_PERMISSION", "&cOnly operators can use this command.")));
+                player.sendMessage(color(cfg.getString("CURSED_BLADE.MESSAGES.NO_PERMISSION", "&cOnly operators can use this command.")));
                 return true;
             }
 
-            String title = cfg.getString("ALTARS.COMMANDS.LEGS.INVENTORY_TITLE", "Legendary Weapons");
+            String title = cfg.getString("CURSED_BLADE.COMMANDS.LEGS.INVENTORY_TITLE", "Legendary Weapons");
             Inventory chest = Bukkit.createInventory(null, InventoryType.CHEST, Component.text(title));
-            int ruinedSlot = Math.max(0, Math.min(26, cfg.getInt("ALTARS.COMMANDS.LEGS.RUINED_BLADE_SLOT", 0)));
-            int enderSlot = Math.max(0, Math.min(26, cfg.getInt("ALTARS.COMMANDS.LEGS.ENDER_BLADE_SLOT", 1)));
-            chest.setItem(ruinedSlot, weaponManager.createWeapon(WeaponManager.LegendaryType.RUINED_BLADE));
-            chest.setItem(enderSlot, weaponManager.createWeapon(WeaponManager.LegendaryType.ENDER_BLADE));
+            int slot = Math.max(0, Math.min(26, cfg.getInt("CURSED_BLADE.COMMANDS.LEGS.GIVE_ITEM_SLOT", 0)));
+            chest.setItem(slot, weaponManager.createLegendaryWeapon());
             player.openInventory(chest);
             return true;
         }
@@ -76,8 +74,8 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String alias, @NotNull String[] args) {
         if (args.length == 1) {
             List<String> options = new ArrayList<>();
-            String reload = plugin.getConfig().getString("ALTARS.COMMANDS.RELOAD.ALIAS", "reload");
-            String legs = plugin.getConfig().getString("ALTARS.COMMANDS.LEGS.ALIAS", "legs");
+            String reload = plugin.getConfig().getString("CURSED_BLADE.COMMANDS.RELOAD.ALIAS", "reload");
+            String legs = plugin.getConfig().getString("CURSED_BLADE.COMMANDS.LEGS.ALIAS", "legs");
             if (reload.startsWith(args[0].toLowerCase())) options.add(reload);
             if (legs.startsWith(args[0].toLowerCase())) options.add(legs);
             return options;
