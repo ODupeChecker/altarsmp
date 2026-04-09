@@ -60,8 +60,10 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
 
             String title = cfg.getString("CURSED_BLADE.COMMANDS.LEGS.INVENTORY_TITLE", "Legendary Weapons");
             Inventory chest = Bukkit.createInventory(null, InventoryType.CHEST, Component.text(title));
-            int slot = Math.max(0, Math.min(26, cfg.getInt("CURSED_BLADE.COMMANDS.LEGS.GIVE_ITEM_SLOT", 0)));
-            chest.setItem(slot, weaponManager.createLegendaryWeapon());
+            int cursedSlot = Math.max(0, Math.min(26, cfg.getInt("CURSED_BLADE.COMMANDS.LEGS.GIVE_ITEM_SLOT", 0)));
+            int enderSlot = Math.max(0, Math.min(26, cfg.getInt("ENDER_BLADE.COMMANDS.LEGS.GIVE_ITEM_SLOT", 1)));
+            chest.setItem(cursedSlot, weaponManager.createCursedBlade());
+            chest.setItem(enderSlot, weaponManager.createEnderBlade());
             player.openInventory(chest);
             return true;
         }
