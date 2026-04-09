@@ -122,11 +122,7 @@ public final class AbilityListener implements Listener {
             }
             chainPropagationGuard.add(linkedId);
             try {
-                if (attacker != null) {
-                    linkedPlayer.damage(mirroredDamage, attacker);
-                } else {
-                    linkedPlayer.damage(mirroredDamage);
-                }
+                applyTrueDamage(attacker, linkedPlayer, mirroredDamage);
             } finally {
                 chainPropagationGuard.remove(linkedId);
             }
@@ -143,6 +139,7 @@ public final class AbilityListener implements Listener {
         }
 
         slashCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+        player.swingMainHand();
         showCooldownBar(player, plugin.getConfig().getString(root + ".ABILITY_NAME", "Ruined Slash"), cooldownMillis, BossBar.Color.PURPLE);
 
         int totalBlocks = plugin.getConfig().getInt(root + ".DISTANCE_BLOCKS", 7);
@@ -185,6 +182,7 @@ public final class AbilityListener implements Listener {
         }
 
         ruinstepCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+        player.swingMainHand();
         showCooldownBar(player, plugin.getConfig().getString(root + ".ABILITY_NAME", "Ruinstep"), cooldownMillis, BossBar.Color.RED);
 
         double dashSpeed = plugin.getConfig().getDouble(root + ".DASH_SPEED", 1.85);
@@ -259,6 +257,7 @@ public final class AbilityListener implements Listener {
         }
 
         blinkStrikeCooldowns.put(caster.getUniqueId(), System.currentTimeMillis());
+        caster.swingMainHand();
         showCooldownBar(caster, plugin.getConfig().getString(root + ".ABILITY_NAME", "Blink Strike"), cooldownMillis, BossBar.Color.PURPLE);
 
         double behindDistance = plugin.getConfig().getDouble(root + ".BEHIND_DISTANCE", 1.2);
@@ -297,6 +296,7 @@ public final class AbilityListener implements Listener {
         }
 
         enderChainCooldowns.put(caster.getUniqueId(), System.currentTimeMillis());
+        caster.swingMainHand();
         showCooldownBar(caster, plugin.getConfig().getString(root + ".ABILITY_NAME", "Ender Chain"), cooldownMillis, BossBar.Color.PURPLE);
 
         Player first = targets.get(0);
@@ -492,6 +492,19 @@ public final class AbilityListener implements Listener {
     private void applyTrueDamage(Player source, LivingEntity target, double amount) {
         target.setNoDamageTicks(0);
         target.damage(amount, source);
+    }
+
+    private void applyTrueDamage(LivingEntity target, double amount) {
+        target.setNoDamageTicks(0);
+        target.damage(amount);
+    }
+
+    private void applyTrueDamage(Entity source, LivingEntity target, double amount) {
+        if (source instanceof Player playerSource) {
+            applyTrueDamage(playerSource, target, amount);
+            return;
+        }
+        applyTrueDamage(target, amount);
     }
 
     private void showCooldownBar(Player player, String abilityName, long cooldownMillis, BossBar.Color color) {
