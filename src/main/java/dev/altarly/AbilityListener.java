@@ -487,33 +487,8 @@ public final class AbilityListener implements Listener {
     }
 
     private void applyTrueDamage(Player source, LivingEntity target, double amount) {
-        if (amount <= 0.0) {
-            return;
-        }
-
-        if (target instanceof Player playerTarget) {
-            double absorption = playerTarget.getAbsorptionAmount();
-            if (absorption > 0.0) {
-                double absorbed = Math.min(absorption, amount);
-                playerTarget.setAbsorptionAmount(absorption - absorbed);
-                amount -= absorbed;
-                if (amount <= 0.0) {
-                    return;
-                }
-            }
-        }
-
-        double health = target.getHealth();
-        double result = health - amount;
-        if (result <= 0.0) {
-            target.setNoDamageTicks(0);
-            target.damage(1000.0, source);
-            return;
-        }
-
         target.setNoDamageTicks(0);
-        target.damage(0.001, source);
-        target.setHealth(result);
+        target.damage(amount, source);
     }
 
     private void showCooldownBar(Player player, String abilityName, long cooldownMillis, BossBar.Color color) {
