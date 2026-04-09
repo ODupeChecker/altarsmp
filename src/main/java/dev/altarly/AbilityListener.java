@@ -8,6 +8,7 @@ import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
@@ -21,6 +22,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerSwapHandItemsEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.potion.PotionEffect;
 import org.bukkit.potion.PotionEffectType;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -486,13 +488,28 @@ public final class AbilityListener implements Listener {
     }
 
     private void applyTrueDamage(Player source, LivingEntity target, double amount) {
-        target.setNoDamageTicks(0);
-        target.damage(amount, source);
+        applyTrueDamage(target, amount);
     }
 
     private void applyTrueDamage(LivingEntity target, double amount) {
+        if (amount <= 0.0 || target.isDead()) {
+            return;
+        }
+
         target.setNoDamageTicks(0);
-        target.damage(amount);
+        if (target instanceof Player playerTarget) {
+            applyPlayerTrueDamage(playerTarget, amount);
+            return;
+        }
+
+        double remaining = amount;
+        double health = target.getHealth();
+        if (remaining >= health) {
+            target.setHealth(0.0);
+            return;
+        }
+
+        target.setHealth(health - remaining);
     }
 
     private void applyTrueDamage(Entity source, LivingEntity target, double amount) {
@@ -501,6 +518,71 @@ public final class AbilityListener implements Listener {
             return;
         }
         applyTrueDamage(target, amount);
+    }
+
+    private void applyPlayerTrueDamage(Player player, double amount) {
+        double remaining = amount;
+
+        double absorption = player.getAbsorptionAmount();
+        if (absorption > 0.0) {
+            double absorbed = Math.min(absorption, remaining);
+            player.setAbsorptionAmount(absorption - absorbed);
+            remaining -= absorbed;
+        }
+
+        if (remaining <= 0.0) {
+            return;
+        }
+
+        double health = player.getHealth();
+        if (remaining >= health) {
+            if (tryPopTotem(player)) {
+                return;
+            }
+            player.setHealth(0.0);
+            return;
+        }
+
+        player.setHealth(health - remaining);
+    }
+
+    private boolean tryPopTotem(Player player) {
+        PlayerInventory inventory = player.getInventory();
+        if (consumeTotem(inventory, true) || consumeTotem(inventory, false)) {
+            player.setHealth(1.0);
+            player.setFireTicks(0);
+            player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 900, 1));
+            player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 100, 1));
+            player.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 800, 0));
+            player.playEffect(EntityEffect.TOTEM_RESURRECT);
+            return true;
+        }
+        return false;
+    }
+
+    private boolean consumeTotem(PlayerInventory inventory, boolean offHandFirst) {
+        ItemStack stack = offHandFirst ? inventory.getItemInOffHand() : inventory.getItemInMainHand();
+        if (stack == null || stack.getType() != Material.TOTEM_OF_UNDYING) {
+            return false;
+        }
+
+        int amount = stack.getAmount();
+        if (amount <= 1) {
+            if (offHandFirst) {
+                inventory.setItemInOffHand(null);
+            } else {
+                inventory.setItemInMainHand(null);
+            }
+            return true;
+        }
+
+        stack.setAmount(amount - 1);
+        if (offHandFirst) {
+            inventory.setItemInOffHand(stack);
+        } else {
+            inventory.setItemInMainHand(stack);
+        }
+        return true;
     }
 
     private void showCooldownBar(Player player, String abilityName, long cooldownMillis, BossBar.Color color) {
