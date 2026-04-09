@@ -9,7 +9,6 @@ import org.bukkit.Bukkit;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Particle;
-import org.bukkit.Material;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.Entity;
 import org.bukkit.EntityEffect;
@@ -491,73 +490,8 @@ public final class AbilityListener implements Listener {
     }
 
     private void applyTrueDamage(Player source, LivingEntity target, double amount) {
-        if (amount <= 0.0 || target.isDead()) {
-            return;
-        }
-
-        if (target instanceof Player playerTarget) {
-            double absorption = playerTarget.getAbsorptionAmount();
-            if (absorption > 0.0) {
-                double absorbed = Math.min(absorption, amount);
-                playerTarget.setAbsorptionAmount(absorption - absorbed);
-                amount -= absorbed;
-                if (amount <= 0.0) {
-                    return;
-                }
-            }
-        }
-
-        double result = target.getHealth() - amount;
-        if (result > 0.0) {
-            target.setHealth(result);
-            return;
-        }
-
-        if (target instanceof Player playerTarget && tryPopTotem(playerTarget)) {
-            return;
-        }
-
-        target.setHealth(0.0);
-    }
-
-    private boolean tryPopTotem(Player player) {
-        ItemStack offHand = player.getInventory().getItemInOffHand();
-        if (consumeTotem(offHand)) {
-            applyTotemEffects(player);
-            return true;
-        }
-
-        ItemStack mainHand = player.getInventory().getItemInMainHand();
-        if (consumeTotem(mainHand)) {
-            applyTotemEffects(player);
-            return true;
-        }
-
-        return false;
-    }
-
-    private boolean consumeTotem(ItemStack stack) {
-        if (stack == null || stack.getType() != Material.TOTEM_OF_UNDYING) {
-            return false;
-        }
-        int amount = stack.getAmount();
-        if (amount <= 1) {
-            stack.setAmount(0);
-        } else {
-            stack.setAmount(amount - 1);
-        }
-        return true;
-    }
-
-    private void applyTotemEffects(Player player) {
-        player.setHealth(1.0);
-        player.setFireTicks(0);
-        player.removePotionEffect(PotionEffectType.POISON);
-        player.removePotionEffect(PotionEffectType.WITHER);
-        player.addPotionEffect(new PotionEffect(PotionEffectType.REGENERATION, 900, 1));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.ABSORPTION, 100, 1));
-        player.addPotionEffect(new PotionEffect(PotionEffectType.FIRE_RESISTANCE, 800, 0));
-        player.playEffect(EntityEffect.TOTEM_RESURRECT);
+        target.setNoDamageTicks(0);
+        target.damage(amount, source);
     }
 
     private void showCooldownBar(Player player, String abilityName, long cooldownMillis, BossBar.Color color) {
