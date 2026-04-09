@@ -1,67 +1,50 @@
-ALTARS:
-  RUINED_BLADE:
-    ITEM:
-      MATERIAL: NETHERITE_SWORD
-      DISPLAY_NAME: "&5&lRuined Blade"
-      CUSTOM_MODEL_DATA: 15
-      LORE:
-        - "&7Legendary weapon of the tower."
-        - "&8Offhand: Ruined Slash"
-        - "&8Shift+Offhand: Ruinstep"
+CURSED_BLADE:
+  ITEM:
+    MATERIAL: NETHERITE_SWORD
+    DISPLAY_NAME: "&5&lCursed Blade"
+    CUSTOM_MODEL_DATA: 15
+    LORE:
+      - "&7Legendary weapon of the tower."
+      - "&8Offhand: Ruined Slash"
+      - "&8Shift+Offhand: Ruinstep"
 
-    SOUNDS:
-      RADIUS: 15.0
+  PVP_ASPECTS:
+    DAMAGE_ENGINE: "TRUE_DAMAGE"
+    HIT_PLAYERS_ONLY: true
+    FRIENDLY_FIRE: true
 
-    ABILITIES:
-      RUINED_SLASH:
-        ENABLED: true
-        ABILITY_NAME: "Ruined Slash"
-        COOLDOWN_MILLIS: 5000
-        DISTANCE_BLOCKS: 7
-        TRUE_DAMAGE: 5.0
-        HIT_RADIUS: 0.65
-        SOUND: "minecraft:entity.player.attack.sweep"
+  ABILITIES:
+    RUINED_SLASH:
+      ENABLED: true
+      ABILITY_NAME: "Ruined Slash"
+      TRIGGER: "OFFHAND_SWAP"
+      SHIFT_REQUIRED: false
+      COOLDOWN_MILLIS: 5000
+      START_OFFSET_BLOCKS: 1
+      DISTANCE_BLOCKS: 7
+      TRUE_DAMAGE: 5.0
+      HIT_RADIUS: 0.65
+      MM_MOB: "TOWER_SKELETON_SLASH_FX:1"
+      MM_WORLD: "worldo12"
+      SOUND: "littleroom_towerskeleton:sword_hit"
+      SOUND_SECONDARY: "minecraft:entity.player.attack.sweep"
 
-      RUINSTEP:
-        ENABLED: true
-        ABILITY_NAME: "Ruinstep"
-        COOLDOWN_MILLIS: 9000
-        DASH_SPEED: 1.85
-        LIFT_VELOCITY: 0.42
-        MIN_AIR_TICKS: 5
-        FLAME_OFFSET_BLOCKS: 0.9
-        FLAME_HEIGHT_OFFSET: 0.1
-        FLAME_SCALE: 4.0
-        HIT_RADIUS: 0.75
-        TRUE_DAMAGE: 3.0
-        DASH_SOUND: "minecraft:entity.blaze.shoot"
-
-  ENDER_BLADE:
-    ITEM:
-      MATERIAL: NETHERITE_SWORD
-      DISPLAY_NAME: "&5&lEnder Blade"
-      CUSTOM_MODEL_DATA: 16
-      LORE:
-        - "&7Legendary blade of the void."
-        - "&8Offhand: Blink Strike"
-        - "&8Shift+Offhand: Ender Chain"
-
-    ABILITIES:
-      BLINK_STRIKE:
-        ENABLED: true
-        ABILITY_NAME: "Blink Strike"
-        COOLDOWN_MILLIS: 7000
-        RANGE: 7.0
-        TRUE_DAMAGE: 5.0
-        SOUND: "minecraft:entity.enderman.death"
-        SOUND_RADIUS: 10.0
-
-      ENDER_CHAIN:
-        ENABLED: true
-        ABILITY_NAME: "Ender Chain"
-        COOLDOWN_MILLIS: 14000
-        RADIUS: 20.0
-        LINK_DURATION_TICKS: 160
+    RUINSTEP:
+      ENABLED: true
+      ABILITY_NAME: "Ruinstep"
+      TRIGGER: "OFFHAND_SWAP"
+      SHIFT_REQUIRED: true
+      COOLDOWN_MILLIS: 9000
+      DASH_SPEED: 1.85
+      LIFT_VELOCITY: 0.42
+      MIN_AIR_TICKS: 5
+      FLAME_OFFSET_BLOCKS: 0.9
+      FLAME_HEIGHT_OFFSET: 0.1
+      FLAME_SCALE: 4.0
+      HIT_RADIUS: 0.75
+      TRUE_DAMAGE: 3.0
+      DASH_SOUND: "minecraft:entity.blaze.shoot"
+      DASH_SOUND_SECONDARY: "minecraft:entity.player.attack.knockback"
 
   COMMANDS:
     RELOAD:
@@ -74,17 +57,12 @@ ALTARS:
       OP_ONLY: true
       INVENTORY_TITLE: "Legendary Weapons"
       INVENTORY_TYPE: "CHEST"
-      RUINED_BLADE_SLOT: 0
-      ENDER_BLADE_SLOT: 1
+      GIVE_ITEM_SLOT: 0
 
   MESSAGES:
     PREFIX: "&8[&5Altarly&8] "
     NO_PERMISSION: "&cYou do not have permission."
     PLAYER_ONLY: "&cOnly players can use this command."
     RELOAD_SUCCESS: "&aAltarly config reloaded."
-    RUINED_SLASH_COOLDOWN: "&cRuined Slash is on cooldown."
+    SLASH_COOLDOWN: "&cRuined Slash is on cooldown."
     RUINSTEP_COOLDOWN: "&cRuinstep is on cooldown."
-    BLINK_STRIKE_COOLDOWN: "&cBlink Strike is on cooldown."
-    ENDER_CHAIN_COOLDOWN: "&cEnder Chain is on cooldown."
-    NO_ENDER_TARGET: "&cNo Ender Target Found"
-    NO_CHAIN_TARGETS: "&cNO Enemies Found"
