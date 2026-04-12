@@ -3,11 +3,9 @@ package dev.altarly;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.List;
@@ -18,28 +16,51 @@ public final class WeaponManager {
     public static final String ENDER_BLADE_ID = "ender_blade";
 
     private final JavaPlugin plugin;
-    private final NamespacedKey weaponKey;
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
 
     public WeaponManager(JavaPlugin plugin) {
         this.plugin = plugin;
-        this.weaponKey = new NamespacedKey(plugin, "legendary_weapon_id");
     }
 
     public ItemStack createCursedBlade() {
-        return createWeapon("CURSED_BLADE", CURSED_BLADE_ID);
+        return createWeapon("CURSED_BLADE");
     }
 
     public ItemStack createEnderBlade() {
-        return createWeapon("ENDER_BLADE", ENDER_BLADE_ID);
+        return createWeapon("ENDER_BLADE");
     }
 
     public String getWeaponId(ItemStack stack) {
-        if (stack == null || stack.getType() != Material.NETHERITE_SWORD || !stack.hasItemMeta()) {
+        if (stack == null || !stack.hasItemMeta()) {
             return null;
         }
+
+        if (isConfiguredWeapon(stack, "CURSED_BLADE")) {
+            return CURSED_BLADE_ID;
+        }
+        if (isConfiguredWeapon(stack, "ENDER_BLADE")) {
+            return ENDER_BLADE_ID;
+        }
+        return null;
+    }
+
+    private boolean isConfiguredWeapon(ItemStack stack, String configRoot) {
+        FileConfiguration cfg = plugin.getConfig();
+        Material expectedMaterial = Material.matchMaterial(cfg.getString(configRoot + ".ITEM.MATERIAL", "NETHERITE_SWORD"));
+        if (expectedMaterial == null) {
+            expectedMaterial = Material.NETHERITE_SWORD;
+        }
+        if (stack.getType() != expectedMaterial) {
+            return false;
+        }
+
         ItemMeta meta = stack.getItemMeta();
-        return meta.getPersistentDataContainer().get(weaponKey, PersistentDataType.STRING);
+        if (!meta.hasCustomModelData()) {
+            return false;
+        }
+
+        int expectedModelData = cfg.getInt(configRoot + ".ITEM.CUSTOM_MODEL_DATA", 0);
+        return expectedModelData != 0 && meta.getCustomModelData() == expectedModelData;
     }
 
     public boolean isCursedBlade(ItemStack stack) {
@@ -50,7 +71,7 @@ public final class WeaponManager {
         return ENDER_BLADE_ID.equals(getWeaponId(stack));
     }
 
-    private ItemStack createWeapon(String configRoot, String weaponId) {
+    private ItemStack createWeapon(String configRoot) {
         FileConfiguration cfg = plugin.getConfig();
 
         Material material = Material.matchMaterial(cfg.getString(configRoot + ".ITEM.MATERIAL", "NETHERITE_SWORD"));
@@ -69,7 +90,6 @@ public final class WeaponManager {
                 .collect(Collectors.toList());
         meta.lore(lore);
 
-        meta.getPersistentDataContainer().set(weaponKey, PersistentDataType.STRING, weaponId);
         item.setItemMeta(meta);
         return item;
     }
