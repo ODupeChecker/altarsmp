@@ -104,14 +104,17 @@ public final class AbilityListener implements Listener {
             return;
         }
 
-        double mirroredDamage = event.getFinalDamage();
-        if (mirroredDamage <= 0.0) {
+        if (!(event instanceof EntityDamageByEntityEvent byEntity)) {
             return;
         }
 
-        Player attacker = null;
-        if (event instanceof EntityDamageByEntityEvent byEntity && byEntity.getDamager() instanceof Player playerDamager) {
-            attacker = playerDamager;
+        if (!(byEntity.getDamager() instanceof Player attacker) || !isChainMeleeHit(byEntity, attacker)) {
+            return;
+        }
+
+        double mirroredDamage = event.getFinalDamage();
+        if (mirroredDamage <= 0.0) {
+            return;
         }
 
         for (UUID linkedId : chain.members) {
@@ -129,6 +132,21 @@ public final class AbilityListener implements Listener {
                 chainPropagationGuard.remove(linkedId);
             }
         }
+    }
+
+    private boolean isChainMeleeHit(EntityDamageByEntityEvent event, Player attacker) {
+        EntityDamageEvent.DamageCause cause = event.getCause();
+        if (cause != EntityDamageEvent.DamageCause.ENTITY_ATTACK
+                && cause != EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK) {
+            return false;
+        }
+
+        ItemStack weapon = attacker.getInventory().getItemInMainHand();
+        if (weapon == null || weapon.getType() == Material.AIR) {
+            return true;
+        }
+
+        return weapon.getType().name().endsWith("_SWORD");
     }
 
     private void castRuinedSlash(Player player) {
