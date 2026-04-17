@@ -394,6 +394,7 @@ public final class AbilityListener implements Listener {
 
         Location groundLoc = player.getLocation();
 
+        spawnLeviathanCharge(groundLoc.clone());
         groundLoc.getWorld().spawnParticle(Particle.SPLASH, groundLoc.clone().add(0, 0.1, 0), 60, 1.0, 0.2, 1.0, 0.3);
         groundLoc.getWorld().spawnParticle(Particle.DUST, groundLoc.clone().add(0, 0.2, 0), 20, 0.5, 0.2, 0.5,
                 new Particle.DustOptions(Color.fromRGB(0, 198, 217), 2.0f));
@@ -416,6 +417,7 @@ public final class AbilityListener implements Listener {
 
                 double radius = (tick / (double) waveTicks) * maxRadius;
                 spawnWaterShockwaveRing(groundLoc, radius);
+                spawnLeviathanExpansionFill(groundLoc, radius, maxRadius, tick, waveTicks);
 
                 double outerBand = radius + (maxRadius / waveTicks) + 0.3;
                 for (Entity entity : groundLoc.getWorld().getNearbyEntities(groundLoc, outerBand, 2.5, outerBand)) {
@@ -470,6 +472,9 @@ public final class AbilityListener implements Listener {
 
         playSoundInRadius(player, plugin.getConfig().getString(root + ".SOUND", "minecraft:entity.elder_guardian.ambient"), 1.0f, 0.65f,
                 plugin.getConfig().getDouble("POSEIDONS_TRIDENT.SOUND_BROADCAST_RADIUS", 20.0));
+        vortexCenter.getWorld().spawnParticle(Particle.BUBBLE_POP, vortexCenter.clone().add(0, 0.2, 0), 40, 0.8, 0.2, 0.8, 0.08);
+        vortexCenter.getWorld().spawnParticle(Particle.DUST, vortexCenter.clone().add(0, 0.4, 0), 24, 0.6, 0.2, 0.6,
+                new Particle.DustOptions(Color.fromRGB(73, 214, 255), 1.8f));
 
         new BukkitRunnable() {
             int tick = 0;
@@ -497,6 +502,7 @@ public final class AbilityListener implements Listener {
                 }
 
                 spawnVortexParticles(vortexCenter, pullRadius, spinAngle);
+                spawnWhirlpoolCore(vortexCenter, pullRadius, spinAngle, tick, durationTicks);
                 spinAngle += 0.28;
 
                 if (tick % 2 == 0) {
@@ -526,6 +532,48 @@ public final class AbilityListener implements Listener {
         }
     }
 
+    private void spawnLeviathanCharge(Location center) {
+        for (int i = 0; i < 14; i++) {
+            double angle = (2 * Math.PI * i) / 14;
+            Location point = center.clone().add(Math.cos(angle) * 0.95, 0.18, Math.sin(angle) * 0.95);
+            center.getWorld().spawnParticle(Particle.DUST, point, 1, 0.0, 0.0, 0.0,
+                    new Particle.DustOptions(Color.fromRGB(30, 168, 255), 1.6f));
+            center.getWorld().spawnParticle(Particle.BUBBLE_POP, point, 1, 0.03, 0.03, 0.03, 0.02);
+        }
+    }
+
+    private void spawnLeviathanExpansionFill(Location center, double radius, double maxRadius, int tick, int waveTicks) {
+        if (radius <= 0.25) {
+            return;
+        }
+
+        int fillPoints = Math.max(14, (int) (radius * 16));
+        for (int i = 0; i < fillPoints; i++) {
+            double angle = ((2 * Math.PI) / fillPoints) * i + (tick * 0.09);
+            double normalized = i / (double) fillPoints;
+            double ringRadius = radius * (0.2 + 0.8 * normalized);
+            Location point = center.clone().add(Math.cos(angle) * ringRadius, 0.12, Math.sin(angle) * ringRadius);
+            center.getWorld().spawnParticle(Particle.DUST, point, 1, 0.02, 0.03, 0.02,
+                    new Particle.DustOptions(Color.fromRGB(96, 224, 255), 1.1f));
+            if ((i + tick) % 4 == 0) {
+                center.getWorld().spawnParticle(Particle.SPLASH, point, 1, 0.06, 0.03, 0.06, 0.08);
+            }
+        }
+
+        if (tick % 2 == 0) {
+            double centerPulse = Math.max(0.6, 1.5 - (radius / Math.max(0.1, maxRadius)));
+            center.getWorld().spawnParticle(Particle.DUST, center.clone().add(0, 0.2, 0), 3, centerPulse, 0.02, centerPulse,
+                    new Particle.DustOptions(Color.fromRGB(0, 170, 236), 1.4f));
+        }
+
+        int crestColumns = 4;
+        for (int i = 0; i < crestColumns; i++) {
+            double columnAngle = ((2 * Math.PI) / crestColumns) * i + (tick * 0.18);
+            Location crest = center.clone().add(Math.cos(columnAngle) * radius, 0.25, Math.sin(columnAngle) * radius);
+            center.getWorld().spawnParticle(Particle.BUBBLE_POP, crest, 1, 0.04, 0.07, 0.04, 0.03);
+        }
+    }
+
     private void spawnVortexParticles(Location center, double radius, double baseAngle) {
         int spiralPoints = 24;
         double height = 3.5;
@@ -544,6 +592,27 @@ public final class AbilityListener implements Listener {
             double a = baseAngle + (2 * Math.PI * i) / ringPoints;
             Location point = center.clone().add(Math.cos(a) * radius, 0.1, Math.sin(a) * radius);
             center.getWorld().spawnParticle(Particle.SPLASH, point, 2, 0.05, 0.05, 0.05, 0.1);
+        }
+    }
+
+    private void spawnWhirlpoolCore(Location center, double radius, double baseAngle, int tick, int durationTicks) {
+        double progress = Math.min(1.0, tick / (double) Math.max(1, durationTicks));
+        double funnelRadius = Math.max(0.6, radius * (0.45 - (progress * 0.2)));
+
+        for (int layer = 0; layer < 6; layer++) {
+            double y = 0.15 + (layer * 0.4);
+            double swirlAngle = baseAngle + layer * 0.65;
+            Location swirlPoint = center.clone().add(Math.cos(swirlAngle) * funnelRadius, y, Math.sin(swirlAngle) * funnelRadius);
+            center.getWorld().spawnParticle(Particle.DUST, swirlPoint, 1, 0.0, 0.0, 0.0,
+                    new Particle.DustOptions(Color.fromRGB(81, 226, 255), 1.2f));
+            if ((layer + tick) % 2 == 0) {
+                center.getWorld().spawnParticle(Particle.BUBBLE_POP, swirlPoint, 1, 0.02, 0.04, 0.02, 0.02);
+            }
+        }
+
+        if (tick % 4 == 0) {
+            center.getWorld().spawnParticle(Particle.DUST, center.clone().add(0, 0.6, 0), 8, 0.25, 0.35, 0.25,
+                    new Particle.DustOptions(Color.fromRGB(0, 164, 229), 1.5f));
         }
     }
 
