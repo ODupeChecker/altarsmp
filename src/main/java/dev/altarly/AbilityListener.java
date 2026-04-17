@@ -28,6 +28,7 @@ import org.bukkit.potion.PotionEffectType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.RayTraceResult;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
 import org.joml.AxisAngle4f;
@@ -53,6 +54,8 @@ public final class AbilityListener implements Listener {
     private final Map<UUID, Long> ruinstepCooldowns = new HashMap<>();
     private final Map<UUID, Long> blinkStrikeCooldowns = new HashMap<>();
     private final Map<UUID, Long> enderChainCooldowns = new HashMap<>();
+    private final Map<UUID, Long> leviathanSlamCooldowns = new HashMap<>();
+    private final Map<UUID, Long> whirlpoolPrisonCooldowns = new HashMap<>();
 
     private final Map<UUID, ChainLink> activeChains = new HashMap<>();
     private final Set<UUID> chainPropagationGuard = new HashSet<>();
@@ -70,7 +73,8 @@ public final class AbilityListener implements Listener {
 
         boolean cursedBlade = weaponManager.isCursedBlade(mainHand);
         boolean enderBlade = weaponManager.isEnderBlade(mainHand);
-        if (!cursedBlade && !enderBlade) {
+        boolean poseidonsTrident = weaponManager.isPoseidonsTrident(mainHand);
+        if (!cursedBlade && !enderBlade && !poseidonsTrident) {
             return;
         }
 
@@ -86,10 +90,19 @@ public final class AbilityListener implements Listener {
             return;
         }
 
-        if (sneaking && plugin.getConfig().getBoolean("ENDER_BLADE.ABILITIES.ENDER_CHAIN.ENABLED", true)) {
-            castEnderChain(player);
-        } else if (!sneaking && plugin.getConfig().getBoolean("ENDER_BLADE.ABILITIES.BLINK_STRIKE.ENABLED", true)) {
-            castBlinkStrike(player);
+        if (enderBlade) {
+            if (sneaking && plugin.getConfig().getBoolean("ENDER_BLADE.ABILITIES.ENDER_CHAIN.ENABLED", true)) {
+                castEnderChain(player);
+            } else if (!sneaking && plugin.getConfig().getBoolean("ENDER_BLADE.ABILITIES.BLINK_STRIKE.ENABLED", true)) {
+                castBlinkStrike(player);
+            }
+            return;
+        }
+
+        if (sneaking && plugin.getConfig().getBoolean("POSEIDONS_TRIDENT.ABILITIES.WHIRLPOOL_PRISON.ENABLED", true)) {
+            castWhirlpoolPrison(player);
+        } else if (!sneaking && plugin.getConfig().getBoolean("POSEIDONS_TRIDENT.ABILITIES.LEVIATHAN_SLAM.ENABLED", true)) {
+            castLeviathanSlam(player);
         }
     }
 
@@ -358,6 +371,180 @@ public final class AbilityListener implements Listener {
                 cleanupChain(first.getUniqueId(), second.getUniqueId());
             }
         }.runTaskLater(plugin, ticks);
+    }
+
+    private void castLeviathanSlam(Player player) {
+        String root = "POSEIDONS_TRIDENT.ABILITIES.LEVIATHAN_SLAM";
+
+        long cooldownMillis = plugin.getConfig().getLong(root + ".COOLDOWN_MILLIS", 45000L);
+        if (isOnCooldown(player.getUniqueId(), leviathanSlamCooldowns, cooldownMillis)) {
+            sendMessage(player, "POSEIDONS_TRIDENT", plugin.getConfig().getString("POSEIDONS_TRIDENT.MESSAGES.LEVIATHAN_SLAM_COOLDOWN", "&cLeviathan Slam is on cooldown."));
+            return;
+        }
+
+        leviathanSlamCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+        player.swingMainHand();
+        showCooldownBar(player, plugin.getConfig().getString(root + ".ABILITY_NAME", "Leviathan Slam"), cooldownMillis, BossBar.Color.BLUE);
+
+        double damage = plugin.getConfig().getDouble(root + ".TRUE_DAMAGE", 6.0);
+        double knockUpForce = plugin.getConfig().getDouble(root + ".KNOCK_UP_FORCE", 0.75);
+        int stunTicks = plugin.getConfig().getInt(root + ".STUN_TICKS", 30);
+        double maxRadius = plugin.getConfig().getDouble(root + ".SHOCKWAVE_RADIUS", 8.0);
+        int waveTicks = plugin.getConfig().getInt(root + ".WAVE_TICKS", 14);
+
+        Location groundLoc = player.getLocation();
+
+        groundLoc.getWorld().spawnParticle(Particle.SPLASH, groundLoc.clone().add(0, 0.1, 0), 60, 1.0, 0.2, 1.0, 0.3);
+        groundLoc.getWorld().spawnParticle(Particle.DUST, groundLoc.clone().add(0, 0.2, 0), 20, 0.5, 0.2, 0.5,
+                new Particle.DustOptions(Color.fromRGB(0, 198, 217), 2.0f));
+        playSoundInRadius(player, plugin.getConfig().getString(root + ".SOUND", "minecraft:entity.generic.splash"), 1.0f, 0.5f,
+                plugin.getConfig().getDouble("POSEIDONS_TRIDENT.SOUND_BROADCAST_RADIUS", 20.0));
+        playSoundInRadius(player, plugin.getConfig().getString(root + ".SOUND_SECONDARY", "minecraft:entity.elder_guardian.hurt"), 0.9f, 0.8f,
+                plugin.getConfig().getDouble("POSEIDONS_TRIDENT.SOUND_BROADCAST_RADIUS", 20.0));
+
+        Set<UUID> alreadyHit = new HashSet<>();
+
+        new BukkitRunnable() {
+            int tick = 1;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || tick > waveTicks) {
+                    cancel();
+                    return;
+                }
+
+                double radius = (tick / (double) waveTicks) * maxRadius;
+                spawnWaterShockwaveRing(groundLoc, radius);
+
+                double outerBand = radius + (maxRadius / waveTicks) + 0.3;
+                for (Entity entity : groundLoc.getWorld().getNearbyEntities(groundLoc, outerBand, 2.5, outerBand)) {
+                    if (!(entity instanceof Player target) || !isEnemyTarget(player, target)) continue;
+                    if (alreadyHit.contains(target.getUniqueId())) continue;
+                    double dist = target.getLocation().distance(groundLoc);
+                    if (dist > outerBand) continue;
+                    alreadyHit.add(target.getUniqueId());
+                    applyTrueDamage(player, target, damage);
+                    target.setVelocity(target.getVelocity().setY(knockUpForce));
+                    target.addPotionEffect(new PotionEffect(PotionEffectType.SLOWNESS, stunTicks, 10, false, false));
+                }
+
+                tick++;
+            }
+        }.runTaskTimer(plugin, 0L, 1L);
+    }
+
+    private void castWhirlpoolPrison(Player player) {
+        String root = "POSEIDONS_TRIDENT.ABILITIES.WHIRLPOOL_PRISON";
+
+        long cooldownMillis = plugin.getConfig().getLong(root + ".COOLDOWN_MILLIS", 60000L);
+        if (isOnCooldown(player.getUniqueId(), whirlpoolPrisonCooldowns, cooldownMillis)) {
+            sendMessage(player, "POSEIDONS_TRIDENT", plugin.getConfig().getString("POSEIDONS_TRIDENT.MESSAGES.WHIRLPOOL_PRISON_COOLDOWN", "&cWhirlpool Prison is on cooldown."));
+            return;
+        }
+
+        whirlpoolPrisonCooldowns.put(player.getUniqueId(), System.currentTimeMillis());
+        player.swingMainHand();
+        showCooldownBar(player, plugin.getConfig().getString(root + ".ABILITY_NAME", "Whirlpool Prison"), cooldownMillis, BossBar.Color.BLUE);
+
+        double placementRange = plugin.getConfig().getDouble(root + ".PLACEMENT_RANGE", 15.0);
+        double pullRadius = plugin.getConfig().getDouble(root + ".PULL_RADIUS", 6.0);
+        double pullForce = plugin.getConfig().getDouble(root + ".PULL_FORCE", 0.35);
+        double trueDamagePerTick = plugin.getConfig().getDouble(root + ".TRUE_DAMAGE_PER_TICK", 0.6);
+        int durationTicks = plugin.getConfig().getInt(root + ".DURATION_TICKS", 100);
+        double burstDamage = plugin.getConfig().getDouble(root + ".BURST_DAMAGE", 9.0);
+        double burstKnockback = plugin.getConfig().getDouble(root + ".BURST_KNOCKBACK", 1.4);
+
+        RayTraceResult ray = player.getWorld().rayTraceBlocks(
+                player.getEyeLocation(),
+                player.getEyeLocation().getDirection(),
+                placementRange
+        );
+
+        final Location vortexCenter;
+        if (ray != null && ray.getHitBlock() != null) {
+            vortexCenter = ray.getHitBlock().getLocation().add(0.5, 1.0, 0.5);
+        } else {
+            vortexCenter = player.getEyeLocation().add(player.getEyeLocation().getDirection().multiply(placementRange));
+        }
+
+        playSoundInRadius(player, plugin.getConfig().getString(root + ".SOUND", "minecraft:entity.elder_guardian.ambient"), 1.0f, 0.65f,
+                plugin.getConfig().getDouble("POSEIDONS_TRIDENT.SOUND_BROADCAST_RADIUS", 20.0));
+
+        new BukkitRunnable() {
+            int tick = 0;
+            double spinAngle = 0;
+
+            @Override
+            public void run() {
+                if (!player.isOnline() || tick >= durationTicks) {
+                    vortexCenter.getWorld().spawnParticle(Particle.EXPLOSION, vortexCenter.clone().add(0, 1, 0), 3, 0.5, 0.5, 0.5, 0.1);
+                    vortexCenter.getWorld().spawnParticle(Particle.SPLASH, vortexCenter.clone().add(0, 1, 0), 120, 2.5, 1.0, 2.5, 0.6);
+                    vortexCenter.getWorld().spawnParticle(Particle.DUST, vortexCenter.clone().add(0, 1, 0), 40, 2.0, 1.0, 2.0,
+                            new Particle.DustOptions(Color.fromRGB(0, 198, 217), 2.5f));
+                    playSoundInRadius(player, "minecraft:entity.generic.explode", 1.0f, 0.55f,
+                            plugin.getConfig().getDouble("POSEIDONS_TRIDENT.SOUND_BROADCAST_RADIUS", 20.0));
+
+                    for (Entity entity : vortexCenter.getWorld().getNearbyEntities(vortexCenter, pullRadius, pullRadius, pullRadius)) {
+                        if (!(entity instanceof Player target) || !isEnemyTarget(player, target)) continue;
+                        applyTrueDamage(player, target, burstDamage);
+                        Vector away = target.getLocation().toVector().subtract(vortexCenter.toVector()).setY(0.35).normalize().multiply(burstKnockback);
+                        target.setVelocity(away);
+                    }
+
+                    cancel();
+                    return;
+                }
+
+                spawnVortexParticles(vortexCenter, pullRadius, spinAngle);
+                spinAngle += 0.28;
+
+                if (tick % 2 == 0) {
+                    for (Entity entity : vortexCenter.getWorld().getNearbyEntities(vortexCenter, pullRadius, pullRadius, pullRadius)) {
+                        if (!(entity instanceof Player target) || !isEnemyTarget(player, target)) continue;
+                        Vector toCenter = vortexCenter.toVector().subtract(target.getLocation().toVector()).setY(0).normalize().multiply(pullForce);
+                        target.setVelocity(target.getVelocity().add(toCenter));
+                        applyTrueDamage(player, target, trueDamagePerTick);
+                    }
+                }
+
+                tick += 2;
+            }
+        }.runTaskTimer(plugin, 0L, 2L);
+    }
+
+    private void spawnWaterShockwaveRing(Location center, double radius) {
+        int points = Math.max(18, (int) (radius * 10));
+        for (int i = 0; i < points; i++) {
+            double angle = (2 * Math.PI * i) / points;
+            double x = Math.cos(angle) * radius;
+            double z = Math.sin(angle) * radius;
+            Location point = center.clone().add(x, 0.1, z);
+            center.getWorld().spawnParticle(Particle.SPLASH, point, 2, 0.08, 0.08, 0.08, 0.15);
+            center.getWorld().spawnParticle(Particle.DUST, point, 1, 0.0, 0.0, 0.0,
+                    new Particle.DustOptions(Color.fromRGB(0, 198, 217), 1.6f));
+        }
+    }
+
+    private void spawnVortexParticles(Location center, double radius, double baseAngle) {
+        int spiralPoints = 24;
+        double height = 3.5;
+        for (int i = 0; i < spiralPoints; i++) {
+            double t = (double) i / spiralPoints;
+            double r = radius * (1.0 - t * 0.45);
+            double a = baseAngle + t * Math.PI * 5;
+            double y = t * height;
+            Location point = center.clone().add(Math.cos(a) * r, y, Math.sin(a) * r);
+            center.getWorld().spawnParticle(Particle.SPLASH, point, 1, 0.04, 0.04, 0.04, 0.06);
+            center.getWorld().spawnParticle(Particle.DUST, point, 1, 0.0, 0.0, 0.0,
+                    new Particle.DustOptions(Color.fromRGB(0, 198, 217), 1.3f));
+        }
+        int ringPoints = 18;
+        for (int i = 0; i < ringPoints; i++) {
+            double a = baseAngle + (2 * Math.PI * i) / ringPoints;
+            Location point = center.clone().add(Math.cos(a) * radius, 0.1, Math.sin(a) * radius);
+            center.getWorld().spawnParticle(Particle.SPLASH, point, 2, 0.05, 0.05, 0.05, 0.1);
+        }
     }
 
     private void cleanupChain(UUID first, UUID second) {
