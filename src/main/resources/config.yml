@@ -1,12 +1,13 @@
 CURSED_BLADE:
   ITEM:
     MATERIAL: NETHERITE_SWORD
-    DISPLAY_NAME: "&5&lCursed Blade"
+    DISPLAY_NAME: "&2&lRuined Greatsword"
     CUSTOM_MODEL_DATA: 15
     LORE:
-      - "&7Legendary weapon of the tower."
-      - "&8Offhand: Ruined Slash"
-      - "&8Shift+Offhand: Ruinstep"
+      - "&2[Offhand]"
+      - "&r&7Ability 1 &2(Ruined Slash)"
+      - ""
+      - "&r&7Ability 1 &2(Ruinstep)"
 
   PVP_ASPECTS:
     DAMAGE_ENGINE: "TRUE_DAMAGE"
@@ -21,10 +22,10 @@ CURSED_BLADE:
       ABILITY_NAME: "Ruined Slash"
       TRIGGER: "OFFHAND_SWAP"
       SHIFT_REQUIRED: false
-      COOLDOWN_MILLIS: 5000
+      COOLDOWN_MILLIS: 45000
       START_OFFSET_BLOCKS: 1
-      DISTANCE_BLOCKS: 7
-      TRUE_DAMAGE: 5.0
+      DISTANCE_BLOCKS: 13
+      TRUE_DAMAGE: 4.0
       HIT_RADIUS: 0.65
       MM_MOB: "TOWER_SKELETON_SLASH_FX:1"
       MM_WORLD: "worldo12"
@@ -36,15 +37,15 @@ CURSED_BLADE:
       ABILITY_NAME: "Ruinstep"
       TRIGGER: "OFFHAND_SWAP"
       SHIFT_REQUIRED: true
-      COOLDOWN_MILLIS: 9000
+      COOLDOWN_MILLIS: 50000
       DASH_SPEED: 1.85
-      LIFT_VELOCITY: 0.42
+      LIFT_VELOCITY: 0.9
       MIN_AIR_TICKS: 5
       FLAME_OFFSET_BLOCKS: 0.9
       FLAME_HEIGHT_OFFSET: 0.1
       FLAME_SCALE: 4.0
       HIT_RADIUS: 0.75
-      TRUE_DAMAGE: 3.0
+      TRUE_DAMAGE: 0.8
       DASH_SOUND: "minecraft:entity.blaze.shoot"
       DASH_SOUND_SECONDARY: "minecraft:entity.player.attack.knockback"
 
@@ -75,27 +76,29 @@ ENDER_BLADE:
     DISPLAY_NAME: "&5&lEnder Blade"
     CUSTOM_MODEL_DATA: 16
     LORE:
-      - "&7Legendary voidforged blade."
-      - "&8Offhand: Blink Strike"
-      - "&8Shift+Offhand: Ender Chain"
+      - "&5[Offhand]"
+      - "&r&7Ability 1 &5(Blink Strike)"
+      - ""
+      - "&5[Shift Offhand]"
+      - "&r&7Ability 1 &5(Ender Chain)"
 
   ABILITIES:
     BLINK_STRIKE:
       ENABLED: true
       ABILITY_NAME: "Blink Strike"
-      COOLDOWN_MILLIS: 7000
+      COOLDOWN_MILLIS: 65000
       RANGE_BLOCKS: 7.0
       BEHIND_DISTANCE: 1.2
       TRUE_DAMAGE: 5.0
       SOUND: "minecraft:entity.enderman.death"
-      SOUND_RADIUS: 10.0
+      SOUND_RADIUS: 20.0
 
     ENDER_CHAIN:
       ENABLED: true
       ABILITY_NAME: "Ender Chain"
-      COOLDOWN_MILLIS: 16000
+      COOLDOWN_MILLIS: 40000
       RADIUS_BLOCKS: 20.0
-      DURATION_TICKS: 140
+      DURATION_TICKS: 200
       SOUND: "minecraft:entity.enderman.death"
       SOUND_RADIUS: 10.0
 
@@ -109,3 +112,51 @@ ENDER_BLADE:
     ENDER_CHAIN_COOLDOWN: "&cEnder Chain is on cooldown."
     NO_ENDER_TARGET: "&cNo Ender Target Found"
     NO_CHAIN_TARGETS: "&cNO Enemies Found"
+
+
+POSEIDONS_TRIDENT:
+  ITEM:
+    MATERIAL: NETHERITE_SWORD
+    DISPLAY_NAME: "&b&lPoseidon's Trident"
+    CUSTOM_MODEL_DATA: 17
+    LORE:
+      - "&7Weapon of the deep sea god."
+      - "&8Offhand: Leviathan Slam"
+      - "&8Shift+Offhand: Whirlpool Prison"
+
+  SOUND_BROADCAST_RADIUS: 20.0
+
+  ABILITIES:
+    LEVIATHAN_SLAM:
+      ENABLED: true
+      ABILITY_NAME: "Leviathan Slam"
+      COOLDOWN_MILLIS: 45000
+      SHOCKWAVE_RADIUS: 7.0
+      WAVE_TICKS: 25
+      TRUE_DAMAGE: 6.0
+      KNOCK_UP_FORCE: 0.75
+      STUN_TICKS: 35
+      SOUND: "minecraft:entity.generic.splash"
+      SOUND_SECONDARY: "minecraft:entity.elder_guardian.hurt"
+
+    WHIRLPOOL_PRISON:
+      ENABLED: true
+      ABILITY_NAME: "Whirlpool Prison"
+      COOLDOWN_MILLIS: 60000
+      PLACEMENT_RANGE: 8.0
+      PULL_RADIUS: 6.0
+      PULL_FORCE: 0.35
+      TRUE_DAMAGE_PER_TICK: 0.2
+      DURATION_TICKS: 80
+      BURST_DAMAGE: 5.0
+      BURST_KNOCKBACK: 8.5
+      SOUND: "minecraft:entity.elder_guardian.ambient"
+
+  COMMANDS:
+    LEGS:
+      GIVE_ITEM_SLOT: 2
+
+  MESSAGES:
+    PREFIX: "&8[&5Altarly&8] "
+    LEVIATHAN_SLAM_COOLDOWN: "&cLeviathan Slam is on cooldown."
+    WHIRLPOOL_PRISON_COOLDOWN: "&cWhirlpool Prison is on cooldown."
