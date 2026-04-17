@@ -62,8 +62,10 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
             Inventory chest = Bukkit.createInventory(null, InventoryType.CHEST, Component.text(title));
             int cursedSlot = Math.max(0, Math.min(26, cfg.getInt("CURSED_BLADE.COMMANDS.LEGS.GIVE_ITEM_SLOT", 0)));
             int enderSlot = Math.max(0, Math.min(26, cfg.getInt("ENDER_BLADE.COMMANDS.LEGS.GIVE_ITEM_SLOT", 1)));
+            int tridentSlot = Math.max(0, Math.min(26, cfg.getInt("POSEIDONS_TRIDENT.COMMANDS.LEGS.GIVE_ITEM_SLOT", 2)));
             chest.setItem(cursedSlot, weaponManager.createCursedBlade());
             chest.setItem(enderSlot, weaponManager.createEnderBlade());
+            chest.setItem(tridentSlot, weaponManager.createPoseidonsTrident());
             player.openInventory(chest);
             return true;
         }
