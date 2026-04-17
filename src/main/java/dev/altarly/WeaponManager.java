@@ -14,6 +14,7 @@ import java.util.stream.Collectors;
 public final class WeaponManager {
     public static final String CURSED_BLADE_ID = "cursed_blade";
     public static final String ENDER_BLADE_ID = "ender_blade";
+    public static final String POSEIDONS_TRIDENT_ID = "poseidons_trident";
 
     private final JavaPlugin plugin;
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacyAmpersand();
@@ -30,6 +31,10 @@ public final class WeaponManager {
         return createWeapon("ENDER_BLADE");
     }
 
+    public ItemStack createPoseidonsTrident() {
+        return createWeapon("POSEIDONS_TRIDENT");
+    }
+
     public String getWeaponId(ItemStack stack) {
         if (stack == null || !stack.hasItemMeta()) {
             return null;
@@ -40,6 +45,9 @@ public final class WeaponManager {
         }
         if (isConfiguredWeapon(stack, "ENDER_BLADE")) {
             return ENDER_BLADE_ID;
+        }
+        if (isConfiguredWeapon(stack, "POSEIDONS_TRIDENT")) {
+            return POSEIDONS_TRIDENT_ID;
         }
         return null;
     }
@@ -69,6 +77,10 @@ public final class WeaponManager {
 
     public boolean isEnderBlade(ItemStack stack) {
         return ENDER_BLADE_ID.equals(getWeaponId(stack));
+    }
+
+    public boolean isPoseidonsTrident(ItemStack stack) {
+        return POSEIDONS_TRIDENT_ID.equals(getWeaponId(stack));
     }
 
     private ItemStack createWeapon(String configRoot) {
