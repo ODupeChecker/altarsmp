@@ -59,6 +59,7 @@ public final class AbilityListener implements Listener {
 
     private final Map<UUID, ChainLink> activeChains = new HashMap<>();
     private final Set<UUID> chainPropagationGuard = new HashSet<>();
+    private final Map<UUID, Long> whirlpoolDamageProtection = new HashMap<>();
 
     public AbilityListener(JavaPlugin plugin, WeaponManager weaponManager, TeamIntegration teamIntegration) {
         this.plugin = plugin;
@@ -112,6 +113,11 @@ public final class AbilityListener implements Listener {
             return;
         }
 
+        if (isWhirlpoolProtected(damaged.getUniqueId()) && !isAllowedWhirlpoolDamage(event)) {
+            event.setCancelled(true);
+            return;
+        }
+
         ChainLink chain = activeChains.get(damaged.getUniqueId());
         if (chain == null || chainPropagationGuard.contains(damaged.getUniqueId())) {
             return;
@@ -127,6 +133,17 @@ public final class AbilityListener implements Listener {
 
         double mirroredDamage = event.getFinalDamage();
         if (mirroredDamage <= 0.0) {
+            return;
+        }
+
+        double chainMaxDamage = Math.max(0.0, plugin.getConfig().getDouble("ENDER_BLADE.ABILITIES.ENDER_CHAIN.MAX_LINK_DAMAGE", 6.0));
+        mirroredDamage = Math.min(mirroredDamage, chainMaxDamage);
+        if (mirroredDamage <= 0.0) {
+            return;
+        }
+
+        if (wouldHitBeLethal(damaged, event.getFinalDamage())) {
+            cleanupChainMembers(chain);
             return;
         }
 
@@ -510,6 +527,7 @@ public final class AbilityListener implements Listener {
                         if (!(entity instanceof Player target) || !isEnemyTarget(player, target)) continue;
                         Vector toCenter = vortexCenter.toVector().subtract(target.getLocation().toVector()).setY(0).normalize().multiply(pullForce);
                         target.setVelocity(target.getVelocity().add(toCenter));
+                        markWhirlpoolProtected(target, durationTicks);
                         applyTrueDamage(player, target, trueDamagePerTick);
                     }
                 }
@@ -627,6 +645,14 @@ public final class AbilityListener implements Listener {
         if (b != null && b.isOnline() && !isPlayerInAnyChain(b.getUniqueId())) {
             b.setGlowing(false);
         }
+    }
+
+    private void cleanupChainMembers(ChainLink link) {
+        if (link == null || link.members().size() < 2) {
+            return;
+        }
+        List<UUID> members = new ArrayList<>(link.members());
+        cleanupChain(members.get(0), members.get(1));
     }
 
     private boolean isPlayerInAnyChain(UUID playerId) {
@@ -898,6 +924,35 @@ public final class AbilityListener implements Listener {
         long now = System.currentTimeMillis();
         Long last = cooldowns.get(uuid);
         return last != null && (now - last) < cooldownMillis;
+    }
+
+    private boolean wouldHitBeLethal(Player target, double incomingDamage) {
+        double effectiveHealth = target.getHealth() + Math.max(0.0, target.getAbsorptionAmount());
+        return incomingDamage >= effectiveHealth;
+    }
+
+    private void markWhirlpoolProtected(Player target, int durationTicks) {
+        long protectionMillis = Math.max(50L, durationTicks * 50L);
+        whirlpoolDamageProtection.put(target.getUniqueId(), System.currentTimeMillis() + protectionMillis);
+    }
+
+    private boolean isWhirlpoolProtected(UUID playerId) {
+        Long until = whirlpoolDamageProtection.get(playerId);
+        if (until == null) {
+            return false;
+        }
+        if (until < System.currentTimeMillis()) {
+            whirlpoolDamageProtection.remove(playerId);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isAllowedWhirlpoolDamage(EntityDamageEvent event) {
+        EntityDamageEvent.DamageCause cause = event.getCause();
+        return cause == EntityDamageEvent.DamageCause.ENTITY_ATTACK
+                || cause == EntityDamageEvent.DamageCause.ENTITY_SWEEP_ATTACK
+                || cause == EntityDamageEvent.DamageCause.CUSTOM;
     }
 
     private record ChainLink(UUID caster, Set<UUID> members) {

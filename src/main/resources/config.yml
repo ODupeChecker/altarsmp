@@ -25,7 +25,7 @@ CURSED_BLADE:
       COOLDOWN_MILLIS: 45000
       START_OFFSET_BLOCKS: 1
       DISTANCE_BLOCKS: 13
-      TRUE_DAMAGE: 4.0
+      TRUE_DAMAGE: 3.0
       HIT_RADIUS: 0.65
       MM_MOB: "TOWER_SKELETON_SLASH_FX:1"
       MM_WORLD: "worldo12"
@@ -45,7 +45,7 @@ CURSED_BLADE:
       FLAME_HEIGHT_OFFSET: 0.1
       FLAME_SCALE: 4.0
       HIT_RADIUS: 0.75
-      TRUE_DAMAGE: 0.8
+      TRUE_DAMAGE: 0.01
       DASH_SOUND: "minecraft:entity.blaze.shoot"
       DASH_SOUND_SECONDARY: "minecraft:entity.player.attack.knockback"
 
@@ -84,7 +84,7 @@ ENDER_BLADE:
 
   ABILITIES:
     BLINK_STRIKE:
-      ENABLED: true
+      ENABLED: false
       ABILITY_NAME: "Blink Strike"
       COOLDOWN_MILLIS: 65000
       RANGE_BLOCKS: 7.0
@@ -94,11 +94,12 @@ ENDER_BLADE:
       SOUND_RADIUS: 20.0
 
     ENDER_CHAIN:
-      ENABLED: true
+      ENABLED: false
       ABILITY_NAME: "Ender Chain"
       COOLDOWN_MILLIS: 40000
       RADIUS_BLOCKS: 20.0
       DURATION_TICKS: 200
+      MAX_LINK_DAMAGE: 6.0
       SOUND: "minecraft:entity.enderman.death"
       SOUND_RADIUS: 10.0
 
@@ -140,7 +141,7 @@ POSEIDONS_TRIDENT:
       SOUND_SECONDARY: "minecraft:entity.elder_guardian.hurt"
 
     WHIRLPOOL_PRISON:
-      ENABLED: true
+      ENABLED: false
       ABILITY_NAME: "Whirlpool Prison"
       COOLDOWN_MILLIS: 60000
       PLACEMENT_RANGE: 8.0
@@ -149,7 +150,7 @@ POSEIDONS_TRIDENT:
       TRUE_DAMAGE_PER_TICK: 0.2
       DURATION_TICKS: 80
       BURST_DAMAGE: 5.0
-      BURST_KNOCKBACK: 8.5
+      BURST_KNOCKBACK: 0.7
       SOUND: "minecraft:entity.elder_guardian.ambient"
 
   COMMANDS:
