@@ -151,7 +151,6 @@ POSEIDONS_TRIDENT:
       DURATION_TICKS: 80
       BURST_DAMAGE: 5.0
       BURST_KNOCKBACK: 0.7
-      EXTERNAL_DAMAGE_PROTECTION_MILLIS: 250
       SOUND: "minecraft:entity.elder_guardian.ambient"
 
   COMMANDS:

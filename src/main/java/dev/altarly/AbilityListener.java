@@ -527,7 +527,7 @@ public final class AbilityListener implements Listener {
                         if (!(entity instanceof Player target) || !isEnemyTarget(player, target)) continue;
                         Vector toCenter = vortexCenter.toVector().subtract(target.getLocation().toVector()).setY(0).normalize().multiply(pullForce);
                         target.setVelocity(target.getVelocity().add(toCenter));
-                        markWhirlpoolProtected(target);
+                        markWhirlpoolProtected(target, durationTicks);
                         applyTrueDamage(player, target, trueDamagePerTick);
                     }
                 }
@@ -931,9 +931,9 @@ public final class AbilityListener implements Listener {
         return incomingDamage >= effectiveHealth;
     }
 
-    private void markWhirlpoolProtected(Player target) {
-        long graceMillis = Math.max(50L, plugin.getConfig().getLong("POSEIDONS_TRIDENT.ABILITIES.WHIRLPOOL_PRISON.EXTERNAL_DAMAGE_PROTECTION_MILLIS", 250L));
-        whirlpoolDamageProtection.put(target.getUniqueId(), System.currentTimeMillis() + graceMillis);
+    private void markWhirlpoolProtected(Player target, int durationTicks) {
+        long protectionMillis = Math.max(50L, durationTicks * 50L);
+        whirlpoolDamageProtection.put(target.getUniqueId(), System.currentTimeMillis() + protectionMillis);
     }
 
     private boolean isWhirlpoolProtected(UUID playerId) {
