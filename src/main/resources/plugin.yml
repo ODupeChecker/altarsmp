@@ -7,6 +7,12 @@ commands:
   altarly:
     description: Altarly admin command
     usage: /altarly <reload|legs>
+  removeitem:
+    description: Purges a held item from stored inventories/ender chests
+    usage: /removeitem
+  removeitemrate:
+    description: Sets purge scan rate (entries per second)
+    usage: /removeitemrate <number>
 permissions:
   altarly.admin:
     default: op
