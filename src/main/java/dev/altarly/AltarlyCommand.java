@@ -138,10 +138,16 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
         Component alert = color("&4⚠ &cTHE ITEM &6(" + held.getType().name() + ") &cIS BEING PURGED &4⚠");
         Bukkit.getServer().broadcast(alert);
 
-        List<Path> roots = List.of(
-                Path.of(plugin.getDataFolder().getParentFile().getAbsolutePath(), "EnderChest", "data"),
-                Path.of(plugin.getServer().getWorldContainer().getAbsolutePath(), "world", "playerdata")
-        );
+        Path pluginsFolder = plugin.getDataFolder().getParentFile().toPath();
+        List<Path> roots = new ArrayList<>();
+        addIfDirectory(roots, pluginsFolder.resolve("EnderChest").resolve("data"));
+        addIfDirectory(roots, pluginsFolder.resolve("InvSeePlusPlus").resolve("data"));
+        addIfDirectory(roots, pluginsFolder.resolve("InvSeePlusPlus_Clear").resolve("data"));
+        addIfDirectory(roots, pluginsFolder.resolve("InvSee+").resolve("data"));
+        addIfDirectory(roots, pluginsFolder.resolve("InvSeePlus").resolve("data"));
+        for (org.bukkit.World world : plugin.getServer().getWorlds()) {
+            addIfDirectory(roots, world.getWorldFolder().toPath().resolve("playerdata"));
+        }
 
         ConcurrentLinkedQueue<Path> queue = new ConcurrentLinkedQueue<>();
         for (Path root : roots) {
@@ -189,6 +195,12 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
 
         sender.sendMessage(color("&aStarted purge at &e" + purgeRate + "&a entries/sec."));
         return true;
+    }
+
+    private void addIfDirectory(List<Path> roots, Path directory) {
+        if (Files.isDirectory(directory)) {
+            roots.add(directory);
+        }
     }
 
     private int countMatches(String text, String typeToken, String cmdToken) {
