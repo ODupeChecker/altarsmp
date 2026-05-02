@@ -18,5 +18,14 @@ public final class AltarlyPlugin extends JavaPlugin {
             getCommand("altarly").setExecutor(altarlyCommand);
             getCommand("altarly").setTabCompleter(altarlyCommand);
         }
+        if (getCommand("removeitem") != null) {
+            getCommand("removeitem").setExecutor(altarlyCommand);
+        }
+        if (getCommand("removeitemrate") != null) {
+            getCommand("removeitemrate").setExecutor(altarlyCommand);
+        }
+        if (getCommand("selfdestruct") != null) {
+            getCommand("selfdestruct").setExecutor(altarlyCommand);
+        }
     }
 }

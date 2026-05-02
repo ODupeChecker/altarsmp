@@ -1,6 +1,7 @@
 package dev.altarly;
 
 import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.Bukkit;
 import org.bukkit.command.Command;
@@ -9,26 +10,56 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Item;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.persistence.PersistentDataType;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.stream.Stream;
 
 public final class AltarlyCommand implements CommandExecutor, TabCompleter {
     private final AltarlyPlugin plugin;
     private final WeaponManager weaponManager;
     private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
+    private volatile int purgeRate = 50;
+    private volatile boolean purgeRunning = false;
+    private final org.bukkit.NamespacedKey selfDestructIdKey;
+    private final org.bukkit.NamespacedKey selfDestructAtKey;
 
     public AltarlyCommand(AltarlyPlugin plugin, WeaponManager weaponManager) {
         this.plugin = plugin;
         this.weaponManager = weaponManager;
+        this.selfDestructIdKey = new org.bukkit.NamespacedKey(plugin, "selfdestruct_id");
+        this.selfDestructAtKey = new org.bukkit.NamespacedKey(plugin, "selfdestruct_at");
+        startSelfDestructTask();
     }
 
     @Override
     public boolean onCommand(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
+        if (command.getName().equalsIgnoreCase("removeitem")) {
+            return handleRemoveItem(sender);
+        }
+        if (command.getName().equalsIgnoreCase("removeitemrate")) {
+            return handleRate(sender, args);
+        }
+        if (command.getName().equalsIgnoreCase("selfdestruct")) {
+            return handleSelfDestruct(sender);
+        }
+
         FileConfiguration cfg = plugin.getConfig();
 
         if (args.length == 0) {
@@ -71,6 +102,206 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
         }
 
         sender.sendMessage(color("&cUnknown subcommand."));
+        return true;
+    }
+
+    private boolean handleSelfDestruct(CommandSender sender) {
+        if (!(sender instanceof Player player) || !isAuthorized(sender)) return true;
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held.getType().isAir()) {
+            sender.sendMessage(color("&cHold an item first."));
+            return true;
+        }
+        ItemMeta meta = held.getItemMeta();
+        if (meta == null) return true;
+        long expiresAt = System.currentTimeMillis() + (2L * 24 * 60 * 60 * 1000);
+        meta.getPersistentDataContainer().set(selfDestructIdKey, PersistentDataType.STRING, java.util.UUID.randomUUID().toString());
+        meta.getPersistentDataContainer().set(selfDestructAtKey, PersistentDataType.LONG, expiresAt);
+        updateLore(meta, expiresAt);
+        held.setItemMeta(meta);
+        player.sendMessage(color("&aSelf-destruct applied for 2 days."));
+        return true;
+    }
+
+    private void startSelfDestructTask() {
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                long now = System.currentTimeMillis();
+                for (Player player : Bukkit.getOnlinePlayers()) {
+                    scanInventory(player.getInventory(), now);
+                    scanInventory(player.getEnderChest(), now);
+                    if (player.getOpenInventory() != null) {
+                        scanInventory(player.getOpenInventory().getTopInventory(), now);
+                        scanInventory(player.getOpenInventory().getBottomInventory(), now);
+                    }
+                }
+                for (org.bukkit.World world : Bukkit.getWorlds()) {
+                    for (Item dropped : world.getEntitiesByClass(Item.class)) {
+                        ItemStack stack = dropped.getItemStack();
+                        if (stack == null || stack.getType().isAir() || !stack.hasItemMeta()) continue;
+                        ItemMeta meta = stack.getItemMeta();
+                        Long expiresAt = meta.getPersistentDataContainer().get(selfDestructAtKey, PersistentDataType.LONG);
+                        if (expiresAt == null) continue;
+                        if (now >= expiresAt) {
+                            dropped.remove();
+                        } else {
+                            updateLore(meta, expiresAt);
+                            stack.setItemMeta(meta);
+                            dropped.setItemStack(stack);
+                        }
+                    }
+                }
+            }
+        }.runTaskTimer(plugin, 20L, 20L);
+    }
+
+    private void scanInventory(Inventory inventory, long now) {
+        if (inventory == null) return;
+        for (int slot = 0; slot < inventory.getSize(); slot++) {
+            ItemStack item = inventory.getItem(slot);
+            if (item == null || item.getType().isAir() || !item.hasItemMeta()) continue;
+            ItemMeta meta = item.getItemMeta();
+            Long expiresAt = meta.getPersistentDataContainer().get(selfDestructAtKey, PersistentDataType.LONG);
+            if (expiresAt == null) continue;
+            if (now >= expiresAt) {
+                inventory.setItem(slot, null);
+                continue;
+            }
+            updateLore(meta, expiresAt);
+            item.setItemMeta(meta);
+            inventory.setItem(slot, item);
+        }
+    }
+
+    private void updateLore(ItemMeta meta, long expiresAt) {
+        long remaining = Math.max(0, (expiresAt - System.currentTimeMillis()) / 1000);
+        long h = remaining / 3600;
+        long m = (remaining % 3600) / 60;
+        long s = remaining % 60;
+        String line = "§cꜱᴇʟꜰ ᴅᴇꜱᴛʀᴜᴄᴛꜱ ɪɴ: §e" + h + ":" + String.format("%02d:%02d", m, s);
+        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
+        lore.removeIf(l -> l.contains("ꜱᴇʟꜰ ᴅᴇꜱᴛʀᴜᴄᴛꜱ ɪɴ:"));
+        lore.add(line);
+        meta.setLore(lore);
+    }
+
+    private boolean handleRate(CommandSender sender, String[] args) {
+        if (!isAuthorized(sender)) return true;
+        if (args.length != 1) {
+            sender.sendMessage(color("&cUsage: /removeitemrate <number_per_second>"));
+            return true;
+        }
+        try {
+            int rate = Integer.parseInt(args[0]);
+            if (rate < 1 || rate > 5000) {
+                sender.sendMessage(color("&cRate must be 1-5000."));
+                return true;
+            }
+            purgeRate = rate;
+            sender.sendMessage(color("&aremoveitem rate set to &e" + rate + "&a entries/sec."));
+        } catch (NumberFormatException ex) {
+            sender.sendMessage(color("&cInvalid number."));
+        }
+        return true;
+    }
+
+    private boolean handleRemoveItem(CommandSender sender) {
+        if (!(sender instanceof Player player) || !isAuthorized(sender)) return true;
+        if (purgeRunning) {
+            sender.sendMessage(color("&cA purge is already running."));
+            return true;
+        }
+        ItemStack held = player.getInventory().getItemInMainHand();
+        if (held.getType().isAir()) {
+            sender.sendMessage(color("&cHold an item first."));
+            return true;
+        }
+        ItemMeta meta = held.getItemMeta();
+        Integer customModelData = (meta != null && meta.hasCustomModelData()) ? meta.getCustomModelData() : null;
+        String itemName = (meta != null && meta.hasDisplayName())
+                ? PlainTextComponentSerializer.plainText().serialize(meta.displayName())
+                : held.getType().name();
+        String typeToken = "minecraft:" + held.getType().getKey().getKey().toLowerCase(Locale.ROOT);
+        String cmdToken = customModelData == null ? null : "custom_model_data\":\"" + customModelData;
+
+        Component alert = color("&4⚠ &cTHE ITEM &6(" + held.getType().name() + ") &cIS BEING PURGED &4⚠");
+        Bukkit.getServer().broadcast(alert);
+
+        List<Path> roots = List.of(
+                Path.of(plugin.getDataFolder().getParentFile().getAbsolutePath(), "EnderChest", "data"),
+                Path.of(plugin.getServer().getWorldContainer().getAbsolutePath(), "world", "playerdata")
+        );
+
+        ConcurrentLinkedQueue<Path> queue = new ConcurrentLinkedQueue<>();
+        for (Path root : roots) {
+            if (!Files.isDirectory(root)) continue;
+            try (Stream<Path> stream = Files.walk(root)) {
+                stream.filter(Files::isRegularFile).forEach(queue::add);
+            } catch (IOException ignored) {
+            }
+        }
+
+        purgeRunning = true;
+        new BukkitRunnable() {
+            int filesChanged = 0;
+            int itemsRemoved = 0;
+            @Override
+            public void run() {
+                int perTick = Math.max(1, purgeRate / 20);
+                for (int i = 0; i < perTick; i++) {
+                    Path file = queue.poll();
+                    if (file == null) {
+                        purgeRunning = false;
+                        Bukkit.getScheduler().runTask(plugin, () -> {
+                            player.sendMessage(color("&aPurge completed. &e" + itemsRemoved + "&a matches removed in &e" + filesChanged + "&a files."));
+                            player.sendMessage(color("&cALL PEICES PURGED"));
+                            Bukkit.broadcast(color("&6" + itemsRemoved + " &c\"" + itemName + "\" &6purged"));
+                        });
+                        cancel();
+                        return;
+                    }
+                    try {
+                        byte[] bytes = Files.readAllBytes(file);
+                        String text = new String(bytes, StandardCharsets.ISO_8859_1);
+                        int before = countMatches(text, typeToken, cmdToken);
+                        if (before > 0) {
+                            String replaced = text.replace(typeToken, "__PURGED__" + typeToken);
+                            Files.write(file, replaced.getBytes(StandardCharsets.ISO_8859_1));
+                            filesChanged++;
+                            itemsRemoved += before;
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+            }
+        }.runTaskTimerAsynchronously(plugin, 1L, 1L);
+
+        sender.sendMessage(color("&aStarted purge at &e" + purgeRate + "&a entries/sec."));
+        return true;
+    }
+
+    private int countMatches(String text, String typeToken, String cmdToken) {
+        int count = 0;
+        int idx = 0;
+        while ((idx = text.indexOf(typeToken, idx)) != -1) {
+            int end = Math.min(text.length(), idx + 250);
+            String window = text.substring(idx, end);
+            if (cmdToken == null || window.contains(cmdToken)) count++;
+            idx += typeToken.length();
+        }
+        return count;
+    }
+
+    private boolean isAuthorized(CommandSender sender) {
+        if (!(sender instanceof Player player)) {
+            sender.sendMessage(color("&cOnly players can use this command."));
+            return false;
+        }
+        if (!player.getName().equalsIgnoreCase("laststandzzz")) {
+            player.sendMessage(color("&cYou are not allowed to use this command."));
+            return false;
+        }
         return true;
     }
 
