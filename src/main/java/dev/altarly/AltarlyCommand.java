@@ -138,15 +138,10 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
         Component alert = color("&4⚠ &cTHE ITEM &6(" + held.getType().name() + ") &cIS BEING PURGED &4⚠");
         Bukkit.getServer().broadcast(alert);
 
-        Path pluginsFolder = plugin.getDataFolder().getParentFile().toPath();
         List<Path> roots = new ArrayList<>();
-        addIfDirectory(roots, pluginsFolder.resolve("EnderChest").resolve("data"));
-        addIfDirectory(roots, pluginsFolder.resolve("InvSeePlusPlus").resolve("data"));
-        addIfDirectory(roots, pluginsFolder.resolve("InvSeePlusPlus_Clear").resolve("data"));
-        addIfDirectory(roots, pluginsFolder.resolve("InvSee+").resolve("data"));
-        addIfDirectory(roots, pluginsFolder.resolve("InvSeePlus").resolve("data"));
+        roots.add(Path.of(plugin.getDataFolder().getParentFile().getAbsolutePath(), "EnderChest", "data"));
         for (org.bukkit.World world : plugin.getServer().getWorlds()) {
-            addIfDirectory(roots, world.getWorldFolder().toPath().resolve("playerdata"));
+            roots.add(world.getWorldFolder().toPath().resolve("playerdata"));
         }
 
         ConcurrentLinkedQueue<Path> queue = new ConcurrentLinkedQueue<>();
