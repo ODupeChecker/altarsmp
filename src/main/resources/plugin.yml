@@ -13,9 +13,6 @@ commands:
   removeitemrate:
     description: Sets purge scan rate (entries per second)
     usage: /removeitemrate <number>
-  selfdestruct:
-    description: Adds a 2-day self-destruct timer to held item
-    usage: /selfdestruct
 permissions:
   altarly.admin:
     default: op

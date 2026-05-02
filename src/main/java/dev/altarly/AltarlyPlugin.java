@@ -24,8 +24,5 @@ public final class AltarlyPlugin extends JavaPlugin {
         if (getCommand("removeitemrate") != null) {
             getCommand("removeitemrate").setExecutor(altarlyCommand);
         }
-        if (getCommand("selfdestruct") != null) {
-            getCommand("selfdestruct").setExecutor(altarlyCommand);
-        }
     }
 }

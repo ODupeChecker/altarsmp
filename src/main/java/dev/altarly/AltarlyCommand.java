@@ -15,7 +15,6 @@ import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -37,8 +36,6 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
     private final LegacyComponentSerializer serializer = LegacyComponentSerializer.legacyAmpersand();
     private volatile int purgeRate = 50;
     private volatile boolean purgeRunning = false;
-    private final org.bukkit.NamespacedKey selfDestructIdKey;
-    private final org.bukkit.NamespacedKey selfDestructAtKey;
 
     public AltarlyCommand(AltarlyPlugin plugin, WeaponManager weaponManager) {
         this.plugin = plugin;
@@ -55,9 +52,6 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
         }
         if (command.getName().equalsIgnoreCase("removeitemrate")) {
             return handleRate(sender, args);
-        }
-        if (command.getName().equalsIgnoreCase("selfdestruct")) {
-            return handleSelfDestruct(sender);
         }
 
         FileConfiguration cfg = plugin.getConfig();
@@ -103,87 +97,6 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
 
         sender.sendMessage(color("&cUnknown subcommand."));
         return true;
-    }
-
-    private boolean handleSelfDestruct(CommandSender sender) {
-        if (!(sender instanceof Player player) || !isAuthorized(sender)) return true;
-        ItemStack held = player.getInventory().getItemInMainHand();
-        if (held.getType().isAir()) {
-            sender.sendMessage(color("&cHold an item first."));
-            return true;
-        }
-        ItemMeta meta = held.getItemMeta();
-        if (meta == null) return true;
-        long expiresAt = System.currentTimeMillis() + (2L * 24 * 60 * 60 * 1000);
-        meta.getPersistentDataContainer().set(selfDestructIdKey, PersistentDataType.STRING, java.util.UUID.randomUUID().toString());
-        meta.getPersistentDataContainer().set(selfDestructAtKey, PersistentDataType.LONG, expiresAt);
-        updateLore(meta, expiresAt);
-        held.setItemMeta(meta);
-        player.sendMessage(color("&aSelf-destruct applied for 2 days."));
-        return true;
-    }
-
-    private void startSelfDestructTask() {
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                long now = System.currentTimeMillis();
-                for (Player player : Bukkit.getOnlinePlayers()) {
-                    scanInventory(player.getInventory(), now);
-                    scanInventory(player.getEnderChest(), now);
-                    if (player.getOpenInventory() != null) {
-                        scanInventory(player.getOpenInventory().getTopInventory(), now);
-                        scanInventory(player.getOpenInventory().getBottomInventory(), now);
-                    }
-                }
-                for (org.bukkit.World world : Bukkit.getWorlds()) {
-                    for (Item dropped : world.getEntitiesByClass(Item.class)) {
-                        ItemStack stack = dropped.getItemStack();
-                        if (stack == null || stack.getType().isAir() || !stack.hasItemMeta()) continue;
-                        ItemMeta meta = stack.getItemMeta();
-                        Long expiresAt = meta.getPersistentDataContainer().get(selfDestructAtKey, PersistentDataType.LONG);
-                        if (expiresAt == null) continue;
-                        if (now >= expiresAt) {
-                            dropped.remove();
-                        } else {
-                            updateLore(meta, expiresAt);
-                            stack.setItemMeta(meta);
-                            dropped.setItemStack(stack);
-                        }
-                    }
-                }
-            }
-        }.runTaskTimer(plugin, 20L, 20L);
-    }
-
-    private void scanInventory(Inventory inventory, long now) {
-        if (inventory == null) return;
-        for (int slot = 0; slot < inventory.getSize(); slot++) {
-            ItemStack item = inventory.getItem(slot);
-            if (item == null || item.getType().isAir() || !item.hasItemMeta()) continue;
-            ItemMeta meta = item.getItemMeta();
-            Long expiresAt = meta.getPersistentDataContainer().get(selfDestructAtKey, PersistentDataType.LONG);
-            if (expiresAt == null) continue;
-            if (now >= expiresAt) {
-                inventory.setItem(slot, null);
-                continue;
-            }
-            updateLore(meta, expiresAt);
-            item.setItemMeta(meta);
-            inventory.setItem(slot, item);
-        }
-    }
-
-    private void updateLore(ItemMeta meta, long expiresAt) {
-        long remaining = Math.max(0, (expiresAt - System.currentTimeMillis()) / 1000);
-        long h = remaining / 3600;
-        long m = (remaining % 3600) / 60;
-        long s = remaining % 60;
-        String line = "§cꜱᴇʟꜰ ᴅᴇꜱᴛʀᴜᴄᴛꜱ ɪɴ: §e" + h + ":" + String.format("%02d:%02d", m, s);
-        List<String> lore = meta.hasLore() ? new ArrayList<>(meta.getLore()) : new ArrayList<>();
-        lore.removeIf(l -> l.contains("ꜱᴇʟꜰ ᴅᴇꜱᴛʀᴜᴄᴛꜱ ɪɴ:"));
-        lore.add(line);
-        meta.setLore(lore);
     }
 
     private boolean handleRate(CommandSender sender, String[] args) {
