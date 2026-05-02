@@ -40,9 +40,6 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
     public AltarlyCommand(AltarlyPlugin plugin, WeaponManager weaponManager) {
         this.plugin = plugin;
         this.weaponManager = weaponManager;
-        this.selfDestructIdKey = new org.bukkit.NamespacedKey(plugin, "selfdestruct_id");
-        this.selfDestructAtKey = new org.bukkit.NamespacedKey(plugin, "selfdestruct_at");
-        startSelfDestructTask();
     }
 
     @Override
