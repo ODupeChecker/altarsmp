@@ -10,6 +10,7 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.entity.Player;
+import org.bukkit.entity.Item;
 import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -23,6 +24,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -38,6 +40,9 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
     public AltarlyCommand(AltarlyPlugin plugin, WeaponManager weaponManager) {
         this.plugin = plugin;
         this.weaponManager = weaponManager;
+        this.selfDestructIdKey = new org.bukkit.NamespacedKey(plugin, "selfdestruct_id");
+        this.selfDestructAtKey = new org.bukkit.NamespacedKey(plugin, "selfdestruct_at");
+        startSelfDestructTask();
     }
 
     @Override
