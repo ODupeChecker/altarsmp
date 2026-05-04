@@ -161,3 +161,32 @@ POSEIDONS_TRIDENT:
     PREFIX: "&8[&5Altarly&8] "
     LEVIATHAN_SLAM_COOLDOWN: "&cLeviathan Slam is on cooldown."
     WHIRLPOOL_PRISON_COOLDOWN: "&cWhirlpool Prison is on cooldown."
+
+SLOWNESS_SWORD:
+  ITEM:
+    MATERIAL: NETHERITE_SWORD
+    DISPLAY_NAME: "&5&lSlowness Sword"
+    CUSTOM_MODEL_DATA: 18
+    LORE:
+      - "&5[Offhand]"
+      - "&r&7Ability 1 &5(Slowness Field)"
+
+  ABILITIES:
+    SLOWNESS_FIELD:
+      ENABLED: true
+      ABILITY_NAME: "Slowness Field"
+      TRIGGER: "OFFHAND_SWAP"
+      SHIFT_REQUIRED: false
+      COOLDOWN_MILLIS: 45000
+      RADIUS_BLOCKS: 6.0
+      DURATION_TICKS: 100
+      TICK_STEP: 3
+      FREEZE_TICKS: 6
+
+  COMMANDS:
+    LEGS:
+      GIVE_ITEM_SLOT: 3
+
+  MESSAGES:
+    PREFIX: "&8[&5Altarly&8] "
+    SLOWNESS_FIELD_COOLDOWN: "&cSlowness Field is on cooldown."
