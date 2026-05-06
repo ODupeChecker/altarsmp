@@ -192,12 +192,6 @@ public final class AltarlyCommand implements CommandExecutor, TabCompleter {
         return true;
     }
 
-    private void addIfDirectory(List<Path> roots, Path directory) {
-        if (Files.isDirectory(directory)) {
-            roots.add(directory);
-        }
-    }
-
     private int countMatches(String text, String typeToken, String cmdToken) {
         int count = 0;
         int idx = 0;
