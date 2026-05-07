@@ -56,6 +56,7 @@ public final class AbilityListener implements Listener {
     private final Map<UUID, Long> enderChainCooldowns = new HashMap<>();
     private final Map<UUID, Long> leviathanSlamCooldowns = new HashMap<>();
     private final Map<UUID, Long> whirlpoolPrisonCooldowns = new HashMap<>();
+    private final Map<UUID, Long> slownessFieldCooldowns = new HashMap<>();
 
     private final Map<UUID, ChainLink> activeChains = new HashMap<>();
     private final Set<UUID> chainPropagationGuard = new HashSet<>();
@@ -75,7 +76,8 @@ public final class AbilityListener implements Listener {
         boolean cursedBlade = weaponManager.isCursedBlade(mainHand);
         boolean enderBlade = weaponManager.isEnderBlade(mainHand);
         boolean poseidonsTrident = weaponManager.isPoseidonsTrident(mainHand);
-        if (!cursedBlade && !enderBlade && !poseidonsTrident) {
+        boolean slownessSword = weaponManager.isSlownessSword(mainHand);
+        if (!cursedBlade && !enderBlade && !poseidonsTrident && !slownessSword) {
             return;
         }
 
@@ -104,6 +106,9 @@ public final class AbilityListener implements Listener {
             castWhirlpoolPrison(player);
         } else if (!sneaking && plugin.getConfig().getBoolean("POSEIDONS_TRIDENT.ABILITIES.LEVIATHAN_SLAM.ENABLED", true)) {
             castLeviathanSlam(player);
+        }
+        if (slownessSword && plugin.getConfig().getBoolean("SLOWNESS_SWORD.ABILITIES.SLOWNESS_FIELD.ENABLED", true)) {
+            castSlownessField(player);
         }
     }
 
@@ -535,6 +540,53 @@ public final class AbilityListener implements Listener {
                 tick += 2;
             }
         }.runTaskTimer(plugin, 0L, 2L);
+    }
+
+    private void castSlownessField(Player caster) {
+        String root = "SLOWNESS_SWORD.ABILITIES.SLOWNESS_FIELD";
+        long cooldownMillis = plugin.getConfig().getLong(root + ".COOLDOWN_MILLIS", 30000L);
+        if (isOnCooldown(caster.getUniqueId(), slownessFieldCooldowns, cooldownMillis)) {
+            sendMessage(caster, "SLOWNESS_SWORD", plugin.getConfig().getString("SLOWNESS_SWORD.MESSAGES.SLOWNESS_FIELD_COOLDOWN", "&cSlowness Field is on cooldown."));
+            return;
+        }
+        slownessFieldCooldowns.put(caster.getUniqueId(), System.currentTimeMillis());
+        caster.swingMainHand();
+        showCooldownBar(caster, plugin.getConfig().getString(root + ".ABILITY_NAME", "Slowness Field"), cooldownMillis, BossBar.Color.PURPLE);
+
+        double radius = plugin.getConfig().getDouble(root + ".RADIUS_BLOCKS", 6.0);
+        int durationTicks = plugin.getConfig().getInt(root + ".DURATION_TICKS", 100);
+        Location center = caster.getLocation();
+        center.getWorld().spawnParticle(Particle.DUST, center.clone().add(0, 1.0, 0), 80, radius * 0.35, 0.6, radius * 0.35,
+                new Particle.DustOptions(Color.fromRGB(167, 71, 255), 1.8f));
+        center.getWorld().spawnParticle(Particle.WITCH, center.clone().add(0, 1.0, 0), 120, radius * 0.4, 0.6, radius * 0.4, 0.01);
+        int tickStep = Math.max(2, plugin.getConfig().getInt(root + ".TICK_STEP", 3));
+        int freezeTicks = Math.max(2, plugin.getConfig().getInt(root + ".FREEZE_TICKS", 6));
+        Location fieldCenter = center.clone();
+
+        new BukkitRunnable() {
+            int tick = 0;
+
+            @Override
+            public void run() {
+                if (!caster.isOnline() || caster.isDead() || tick >= durationTicks) {
+                    cancel();
+                    return;
+                }
+
+                fieldCenter.getWorld().spawnParticle(Particle.DUST, fieldCenter.clone().add(0, 1.0, 0), 30, radius * 0.35, 0.3, radius * 0.35,
+                        new Particle.DustOptions(Color.fromRGB(167, 71, 255), 1.2f));
+                fieldCenter.getWorld().spawnParticle(Particle.WITCH, fieldCenter.clone().add(0, 1.0, 0), 16, radius * 0.35, 0.3, radius * 0.35, 0.005);
+
+                for (Entity entity : fieldCenter.getWorld().getNearbyEntities(fieldCenter, radius, radius, radius)) {
+                    if (!(entity instanceof LivingEntity target) || target.getUniqueId().equals(caster.getUniqueId())) {
+                        continue;
+                    }
+                    target.setFreezeTicks(Math.max(target.getFreezeTicks(), freezeTicks));
+                }
+
+                tick += tickStep;
+            }
+        }.runTaskTimer(plugin, 0L, tickStep);
     }
 
     private void spawnWaterShockwaveRing(Location center, double radius) {
